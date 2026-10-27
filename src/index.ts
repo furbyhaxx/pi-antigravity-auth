@@ -110,7 +110,7 @@ async function refreshAntigravityCredentials(
     )
   // Stored refresh is `refreshToken|projectId|managedProjectId`.
   const refreshToken = credentials.refresh.split('|')[0] ?? credentials.refresh
-  const refreshed = await refreshAntigravityToken(refreshToken)
+  const refreshed = await refreshAntigravityToken(refreshToken, signal)
   signal.throwIfAborted()
   // Preserve the project segments packed into the stored refresh string.
   const projectSegments = credentials.refresh.includes('|')

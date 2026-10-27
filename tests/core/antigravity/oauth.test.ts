@@ -428,5 +428,21 @@ describe('Antigravity OAuth', () => {
         /Antigravity token refresh failed \(400 Bad Request\)/,
       )
     })
+
+    it('aborts the in-flight token POST when the caller cancels', async () => {
+      fetchSpy.mockImplementation(
+        (_input: unknown, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () =>
+              reject(init.signal?.reason),
+            )
+          }),
+      )
+      const controller = new AbortController()
+      const pending = refreshAntigravityToken('original-refresh', controller.signal)
+      controller.abort(new Error('caller cancelled'))
+
+      await expect(pending).rejects.toThrow('caller cancelled')
+    })
   })
 })
