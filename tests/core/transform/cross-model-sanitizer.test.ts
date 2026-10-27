@@ -36,9 +36,9 @@ describe('cross-model-sanitizer', () => {
         thoughtSignature: 'EsgQCsUQAXLI2ny...',
       }
       const result = stripGeminiThinkingMetadata(part)
-      expect(result.part.thoughtSignature).toBeUndefined()
+      expect(result.part['thoughtSignature']).toBeUndefined()
       expect(result.stripped).toBe(1)
-      expect(result.part.text).toBe('thinking...')
+      expect(result.part['text']).toBe('thinking...')
     })
 
     it('removes top-level thinkingMetadata', () => {
@@ -47,7 +47,7 @@ describe('cross-model-sanitizer', () => {
         thinkingMetadata: { someData: true },
       }
       const result = stripGeminiThinkingMetadata(part)
-      expect(result.part.thinkingMetadata).toBeUndefined()
+      expect(result.part['thinkingMetadata']).toBeUndefined()
       expect(result.stripped).toBe(1)
     })
 
@@ -61,7 +61,7 @@ describe('cross-model-sanitizer', () => {
         },
       }
       const result = stripGeminiThinkingMetadata(part)
-      const metadata = result.part.metadata as
+      const metadata = result.part['metadata'] as
         | Record<string, unknown>
         | undefined
       const google = metadata?.['google'] as Record<string, unknown> | undefined
@@ -81,7 +81,7 @@ describe('cross-model-sanitizer', () => {
         },
       }
       const result = stripGeminiThinkingMetadata(part, true)
-      const metadata = result.part.metadata as
+      const metadata = result.part['metadata'] as
         | Record<string, unknown>
         | undefined
       const google = metadata?.['google'] as Record<string, unknown> | undefined
@@ -103,7 +103,7 @@ describe('cross-model-sanitizer', () => {
         },
       }
       const result = stripGeminiThinkingMetadata(part, true)
-      const metadata = result.part.metadata as
+      const metadata = result.part['metadata'] as
         | Record<string, unknown>
         | undefined
       const google = metadata?.['google'] as Record<string, unknown> | undefined
@@ -120,7 +120,7 @@ describe('cross-model-sanitizer', () => {
         },
       }
       const result = stripGeminiThinkingMetadata(part, true)
-      expect(result.part.metadata).toBeUndefined()
+      expect(result.part['metadata']).toBeUndefined()
     })
 
     it('handles parts without metadata', () => {
@@ -139,9 +139,9 @@ describe('cross-model-sanitizer', () => {
         signature: 'claude-sig-abc123def456...',
       }
       const result = stripClaudeThinkingFields(part)
-      expect(result.part.signature).toBeUndefined()
+      expect(result.part['signature']).toBeUndefined()
       expect(result.stripped).toBe(1)
-      expect(result.part.thinking).toBe('Analyzing...')
+      expect(result.part['thinking']).toBe('Analyzing...')
     })
 
     it('removes signature from redacted_thinking blocks', () => {
@@ -151,7 +151,7 @@ describe('cross-model-sanitizer', () => {
         signature: 'a]'.repeat(30),
       }
       const result = stripClaudeThinkingFields(part)
-      expect(result.part.signature).toBeUndefined()
+      expect(result.part['signature']).toBeUndefined()
       expect(result.stripped).toBe(1)
     })
 
@@ -162,7 +162,7 @@ describe('cross-model-sanitizer', () => {
         signature: 'a'.repeat(60),
       }
       const result = stripClaudeThinkingFields(part)
-      expect(result.part.signature).toBeUndefined()
+      expect(result.part['signature']).toBeUndefined()
       expect(result.stripped).toBe(1)
     })
 
@@ -173,7 +173,7 @@ describe('cross-model-sanitizer', () => {
         signature: 'short',
       }
       const result = stripClaudeThinkingFields(part)
-      expect(result.part.signature).toBe('short')
+      expect(result.part['signature']).toBe('short')
       expect(result.stripped).toBe(0)
     })
 

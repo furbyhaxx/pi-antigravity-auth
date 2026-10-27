@@ -255,7 +255,7 @@ describe('transform/gemini', () => {
       const result = normalizeGeminiTools(payload)
       expect(result.toolDebugMissing).toBe(0)
       expect(result.toolDebugSummaries).toHaveLength(1)
-      expect((payload.tools as unknown[])[0]).not.toHaveProperty('custom')
+      expect((payload['tools'] as unknown[])[0]).not.toHaveProperty('custom')
     })
 
     it('normalizes tool with function.parameters', () => {
@@ -292,8 +292,8 @@ describe('transform/gemini', () => {
         ],
       }
       normalizeGeminiTools(payload)
-      expect((payload.tools as unknown[])[0]).not.toHaveProperty('custom')
-      expect((payload.tools as unknown[])[0]).toHaveProperty('function')
+      expect((payload['tools'] as unknown[])[0]).not.toHaveProperty('custom')
+      expect((payload['tools'] as unknown[])[0]).toHaveProperty('function')
     })
 
     it('creates custom when both function and custom are missing', () => {
@@ -308,7 +308,7 @@ describe('transform/gemini', () => {
         ],
       }
       normalizeGeminiTools(payload)
-      expect((payload.tools as unknown[])[0]).not.toHaveProperty('custom')
+      expect((payload['tools'] as unknown[])[0]).not.toHaveProperty('custom')
     })
 
     it('counts missing schemas', () => {
@@ -363,7 +363,7 @@ describe('transform/gemini', () => {
         ],
       }
       normalizeGeminiTools(payload)
-      expect((payload.tools as unknown[])[0]).not.toHaveProperty('custom')
+      expect((payload['tools'] as unknown[])[0]).not.toHaveProperty('custom')
     })
 
     it('extracts schema from inputSchema (camelCase)', () => {
@@ -380,7 +380,7 @@ describe('transform/gemini', () => {
         ],
       }
       normalizeGeminiTools(payload)
-      expect((payload.tools as unknown[])[0]).not.toHaveProperty('custom')
+      expect((payload['tools'] as unknown[])[0]).not.toHaveProperty('custom')
     })
   })
 
@@ -392,7 +392,7 @@ describe('transform/gemini', () => {
         tierThinkingLevel: 'high',
         normalizedThinking: { includeThoughts: true },
       })
-      const genConfig = payload.generationConfig as Record<string, unknown>
+      const genConfig = payload['generationConfig'] as Record<string, unknown>
       expect(genConfig['thinkingConfig']).toEqual({
         includeThoughts: true,
         thinkingLevel: 'high',
@@ -406,7 +406,7 @@ describe('transform/gemini', () => {
         tierThinkingBudget: 8192,
         normalizedThinking: { includeThoughts: true },
       })
-      const genConfig = payload.generationConfig as Record<string, unknown>
+      const genConfig = payload['generationConfig'] as Record<string, unknown>
       expect(genConfig['thinkingConfig']).toEqual({
         includeThoughts: true,
         thinkingBudget: 8192,
@@ -420,7 +420,7 @@ describe('transform/gemini', () => {
         tierThinkingBudget: 16384,
         normalizedThinking: { includeThoughts: true, thinkingBudget: 8192 },
       })
-      const genConfig = payload.generationConfig as Record<string, unknown>
+      const genConfig = payload['generationConfig'] as Record<string, unknown>
       expect(
         (genConfig['thinkingConfig'] as Record<string, unknown>)['thinkingBudget'],
       ).toBe(16384)
@@ -432,7 +432,7 @@ describe('transform/gemini', () => {
         model: 'gemini-2.5-pro',
         normalizedThinking: { includeThoughts: true, thinkingBudget: 4096 },
       })
-      const genConfig = payload.generationConfig as Record<string, unknown>
+      const genConfig = payload['generationConfig'] as Record<string, unknown>
       expect(
         (genConfig['thinkingConfig'] as Record<string, unknown>)['thinkingBudget'],
       ).toBe(4096)
@@ -443,7 +443,7 @@ describe('transform/gemini', () => {
       applyGeminiTransforms(payload, {
         model: 'gemini-3-pro',
       })
-      expect(payload.generationConfig).toBeUndefined()
+      expect(payload['generationConfig']).toBeUndefined()
     })
 
     it('preserves existing generationConfig properties', () => {
@@ -456,7 +456,7 @@ describe('transform/gemini', () => {
         tierThinkingLevel: 'medium',
         normalizedThinking: { includeThoughts: true },
       })
-      const genConfig = payload.generationConfig as Record<string, unknown>
+      const genConfig = payload['generationConfig'] as Record<string, unknown>
       expect(genConfig['temperature']).toBe(0.7)
       expect(genConfig['maxOutputTokens']).toBe(1000)
       expect(genConfig['thinkingConfig']).toBeDefined()
@@ -484,7 +484,7 @@ describe('transform/gemini', () => {
         tierThinkingLevel: 'low',
         normalizedThinking: {},
       })
-      const genConfig = payload.generationConfig as Record<string, unknown>
+      const genConfig = payload['generationConfig'] as Record<string, unknown>
       expect(
         (genConfig['thinkingConfig'] as Record<string, unknown>)['includeThoughts'],
       ).toBe(true)
@@ -497,7 +497,7 @@ describe('transform/gemini', () => {
         tierThinkingLevel: 'high',
         normalizedThinking: { includeThoughts: false },
       })
-      const genConfig = payload.generationConfig as Record<string, unknown>
+      const genConfig = payload['generationConfig'] as Record<string, unknown>
       expect(
         (genConfig['thinkingConfig'] as Record<string, unknown>)['includeThoughts'],
       ).toBe(false)
@@ -509,7 +509,7 @@ describe('transform/gemini', () => {
         model: 'gemini-2.5-pro',
         normalizedThinking: { includeThoughts: true },
       })
-      const genConfig = payload.generationConfig as Record<string, unknown>
+      const genConfig = payload['generationConfig'] as Record<string, unknown>
       const thinkingConfig = genConfig['thinkingConfig'] as Record<string, unknown>
       expect(thinkingConfig['includeThoughts']).toBe(true)
       expect(thinkingConfig).not.toHaveProperty('thinkingBudget')
@@ -522,7 +522,7 @@ describe('transform/gemini', () => {
           model: 'gemini-3-pro',
           googleSearch: { mode: 'auto' },
         })
-        const tools = payload.tools as unknown[]
+        const tools = payload['tools'] as unknown[]
         expect(tools).toHaveLength(1)
         expect(tools[0]).toEqual({
           googleSearch: {},
@@ -535,7 +535,7 @@ describe('transform/gemini', () => {
           model: 'gemini-3-flash',
           googleSearch: { mode: 'auto', threshold: 0.7 },
         })
-        const tools = payload.tools as unknown[]
+        const tools = payload['tools'] as unknown[]
         const searchTool = tools[0] as Record<string, unknown>
         // New API uses simple googleSearch: {} without threshold
         expect(searchTool).toEqual({ googleSearch: {} })
@@ -547,7 +547,7 @@ describe('transform/gemini', () => {
           model: 'gemini-3-pro',
           googleSearch: { mode: 'auto' },
         })
-        const tools = payload.tools as unknown[]
+        const tools = payload['tools'] as unknown[]
         const searchTool = tools[0] as Record<string, unknown>
         expect(searchTool).toEqual({ googleSearch: {} })
       })
@@ -558,7 +558,7 @@ describe('transform/gemini', () => {
           model: 'gemini-3-pro',
           googleSearch: { mode: 'off' },
         })
-        const tools = payload.tools as unknown[]
+        const tools = payload['tools'] as unknown[]
         expect(tools).toHaveLength(0)
       })
 
@@ -567,7 +567,7 @@ describe('transform/gemini', () => {
         applyGeminiTransforms(payload, {
           model: 'gemini-3-pro',
         })
-        const tools = payload.tools as unknown[]
+        const tools = payload['tools'] as unknown[]
         expect(tools).toHaveLength(0)
       })
 
@@ -587,7 +587,7 @@ describe('transform/gemini', () => {
           model: 'gemini-3-pro',
           googleSearch: { mode: 'auto' },
         })
-        const tools = payload.tools as unknown[]
+        const tools = payload['tools'] as unknown[]
         expect(tools).toHaveLength(2)
         const lastTool = tools[1] as Record<string, unknown>
         expect(lastTool).toHaveProperty('googleSearch')
@@ -599,7 +599,7 @@ describe('transform/gemini', () => {
           model: 'gemini-3-pro',
           googleSearch: { mode: 'auto' },
         })
-        const tools = payload.tools as unknown[]
+        const tools = payload['tools'] as unknown[]
         const searchTool = tools[0] as Record<string, unknown>
         expect(searchTool).toHaveProperty('googleSearch')
         expect(searchTool).not.toHaveProperty('function')
@@ -1147,7 +1147,7 @@ describe('transform/gemini', () => {
       }
       normalizeGeminiTools(payload)
 
-      const tool = (payload.tools as unknown[])[0] as Record<string, unknown>
+      const tool = (payload['tools'] as unknown[])[0] as Record<string, unknown>
       const func = tool['function'] as Record<string, unknown>
       const schema = func['input_schema'] as Record<string, unknown>
 
@@ -1175,7 +1175,7 @@ describe('transform/gemini', () => {
       }
       normalizeGeminiTools(payload)
 
-      const tool = (payload.tools as unknown[])[0] as Record<string, unknown>
+      const tool = (payload['tools'] as unknown[])[0] as Record<string, unknown>
       const func = tool['function'] as Record<string, unknown>
       const schema = func['input_schema'] as Record<string, unknown>
 
@@ -1193,7 +1193,7 @@ describe('transform/gemini', () => {
       expect(result.toolDebugMissing).toBe(1)
 
       // Check that placeholder uses uppercase types
-      const tool = (payload.tools as unknown[])[0] as Record<string, unknown>
+      const tool = (payload['tools'] as unknown[])[0] as Record<string, unknown>
       const params = tool['parameters'] as Record<string, unknown>
       expect(params['type']).toBe('OBJECT')
 
@@ -1219,7 +1219,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       expect(tools).toHaveLength(1)
       expect(tools[0]).toHaveProperty('functionDeclarations')
       expect(tools[0]).not.toHaveProperty('parameters')
@@ -1251,7 +1251,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       const decls = tools[0]?.['functionDeclarations'] as Array<
         Record<string, unknown>
       >
@@ -1277,7 +1277,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       const decls = tools[0]?.['functionDeclarations'] as Array<
         Record<string, unknown>
       >
@@ -1298,7 +1298,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       expect(tools).toHaveLength(2)
       expect(tools[0]).toHaveProperty('functionDeclarations')
       expect(tools[1]).toHaveProperty('googleSearch')
@@ -1321,7 +1321,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       expect(tools).toHaveLength(2)
       expect(tools[0]).toHaveProperty('functionDeclarations')
       expect(tools[1]).toHaveProperty('googleSearchRetrieval')
@@ -1337,7 +1337,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       expect(tools).toHaveLength(2)
       expect(tools[0]).toHaveProperty('functionDeclarations')
       expect(tools[1]).toHaveProperty('codeExecution')
@@ -1361,7 +1361,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       expect(tools).toHaveLength(1)
       const decls = tools[0]?.['functionDeclarations'] as Array<
         Record<string, unknown>
@@ -1394,7 +1394,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       expect(tools).toHaveLength(1)
       const decls = tools[0]?.['functionDeclarations'] as Array<
         Record<string, unknown>
@@ -1410,7 +1410,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       const decls = tools[0]?.['functionDeclarations'] as Array<
         Record<string, unknown>
       >
@@ -1426,7 +1426,7 @@ describe('transform/gemini', () => {
       }
       wrapToolsAsFunctionDeclarations(payload)
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       const decls = tools[0]?.['functionDeclarations'] as Array<
         Record<string, unknown>
       >
@@ -1436,13 +1436,13 @@ describe('transform/gemini', () => {
     it('does nothing when tools is empty', () => {
       const payload: RequestPayload = { contents: [], tools: [] }
       wrapToolsAsFunctionDeclarations(payload)
-      expect(payload.tools).toEqual([])
+      expect(payload['tools']).toEqual([])
     })
 
     it('does nothing when tools is undefined', () => {
       const payload: RequestPayload = { contents: [] }
       wrapToolsAsFunctionDeclarations(payload)
-      expect(payload.tools).toBeUndefined()
+      expect(payload['tools']).toBeUndefined()
     })
   })
 
@@ -1665,7 +1665,7 @@ describe('transform/gemini', () => {
 
       applyGeminiTransforms(payload, { model: 'gemini-3-pro' })
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       expect(tools).toHaveLength(1)
       expect(tools[0]).toHaveProperty('functionDeclarations')
       expect(tools[0]).not.toHaveProperty('function')
@@ -1705,7 +1705,7 @@ describe('transform/gemini', () => {
 
       applyGeminiTransforms(payload, { model: 'gpt-oss-120b-medium' })
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       const declarations = tools[0]?.['functionDeclarations'] as Array<
         Record<string, unknown>
       >
@@ -1733,7 +1733,7 @@ describe('transform/gemini', () => {
         googleSearch: { mode: 'auto' },
       })
 
-      const tools = payload.tools as Array<Record<string, unknown>>
+      const tools = payload['tools'] as Array<Record<string, unknown>>
       expect(tools).toHaveLength(2)
       expect(tools[0]).toHaveProperty('functionDeclarations')
       expect(tools[1]).toHaveProperty('googleSearch')

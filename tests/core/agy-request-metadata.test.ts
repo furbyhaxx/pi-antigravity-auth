@@ -27,7 +27,7 @@ const MODEL_METADATA_FIXTURES = ['1.1.3', '1.1.6', '1.1.13', '1.1.24'].map(
     JSON.parse(
       readFileSync(
         new URL(
-          `../../../test-fixtures/agy-cli-${version}-model-metadata.json`,
+          `../fixtures/agy-cli-${version}-model-metadata.json`,
           import.meta.url,
         ),
         'utf8',

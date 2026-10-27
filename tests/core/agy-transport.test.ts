@@ -91,7 +91,7 @@ function createSocketProbe(
   })
   const server = net.createServer((socket) => {
     peer = socket
-    socket.on('data', (chunk) => onData(socket, chunk))
+    socket.on('data', (chunk) => onData(socket, typeof chunk === 'string' ? Buffer.from(chunk) : chunk))
     socket.once('close', () => markPeerClosed())
     acceptPeer(socket)
   })

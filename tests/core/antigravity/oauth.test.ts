@@ -28,7 +28,7 @@ mock.module('../../../src/core/agy-transport.ts', () => ({
     url: string,
     init?: RequestInit,
     options?: AgyTransportOptions,
-  ) => fetch(url, { ...init, signal: options?.signal }),
+  ) => fetch(url, { ...init, ...(options?.signal !== undefined ? { signal: options.signal } : {}) }),
 }))
 
 /**

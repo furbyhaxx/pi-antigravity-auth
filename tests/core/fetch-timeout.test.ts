@@ -94,7 +94,7 @@ function controlledFetch(cancel?: (reason: unknown) => void) {
                 { once: true },
               )
           },
-          cancel,
+          ...(cancel ? { cancel } : {}),
         },
         { highWaterMark: 0 },
       )
@@ -528,7 +528,7 @@ describe('fetchWithActiveTimeout', () => {
   })
 
   it('forwards headers, method, and body to the underlying fetchImpl', async () => {
-    const calls: Array<[RequestInfo | URL, RequestInit?]> = []
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = []
     const fetchImpl = mock(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         calls.push([input, init])

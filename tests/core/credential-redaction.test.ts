@@ -36,7 +36,7 @@ describe('credential redaction', () => {
     })
   })
 
-  it('imports the same-job built core root through native Node ESM without a resolution shim', async () => {
+  it('imports the raw TypeScript core root through native Node ESM without a resolution shim', async () => {
     // The Node process fails at its own deadline, before this test's timeout.
     const ran = await runCommand(
       [
@@ -44,13 +44,13 @@ describe('credential redaction', () => {
         '--input-type=module',
         '--eval',
         `
-      const core = await import('./packages/core/dist/index.js')
+      const core = await import('./src/core/index.ts')
       if (core.redactCredentialText('echo opaque-runtime-token', 'opaque-runtime-token') !== 'echo [credential]') throw new Error('core redaction export did not execute')
       console.log('native-node-core-root-import: 1 check passed')
     `,
       ],
       {
-        cwd: fileURLToPath(new URL('../../../', import.meta.url)),
+        cwd: fileURLToPath(new URL('../../', import.meta.url)),
         deadlineMs: 4_000,
       },
     )

@@ -25,6 +25,10 @@ import {
 } from '../../src/core/vault-account-source.ts'
 import type { AntigravityVaultStateFs } from '../../src/core/vault-provider-state.ts'
 
+type FixtureOverrides<T> = {
+  [K in keyof T]?: T[K] | ({} extends Pick<T, K> ? undefined : never)
+}
+
 type Reporter = VaultReporterSource
 type VaultDeclinedAccount = VaultRoster['declined'][number]
 
@@ -32,8 +36,8 @@ const ACCOUNT = 'account-a'
 const CREDENTIAL = 'cred-1'
 const ROUTE = 'vault:route-1'
 
-function row(overrides: Partial<VaultRosterRow> = {}): VaultRosterRow {
-  return {
+function row(overrides: FixtureOverrides<VaultRosterRow> = {}): VaultRosterRow {
+  const value: VaultRosterRow = {
     routeId: ROUTE,
     credentialId: CREDENTIAL,
     credentialType: 'oauth',
@@ -42,8 +46,9 @@ function row(overrides: Partial<VaultRosterRow> = {}): VaultRosterRow {
     label: 'Account A',
     enabled: true,
     addedAt: 0,
-    ...overrides,
   }
+  Object.assign(value, overrides)
+  return value
 }
 
 function roster(
@@ -56,7 +61,7 @@ function roster(
 /** A receipt shaped like the library's, with its token hidden from spreads. */
 function receipt(
   version: number,
-  overrides: Partial<Omit<VaultScopedReceipt, 'accessToken'>> & {
+  overrides: FixtureOverrides<Omit<VaultScopedReceipt, 'accessToken'>> & {
     accessToken?: string
   } = {},
 ): VaultScopedReceipt {
@@ -791,8 +796,8 @@ interface LocalVault {
   hold?: Promise<void>
 }
 
-function vaultRow(overrides: Partial<ScopedRow> = {}): ScopedRow {
-  return {
+function vaultRow(overrides: FixtureOverrides<ScopedRow> = {}): ScopedRow {
+  const value: ScopedRow = {
     id: CREDENTIAL,
     categories: ['antigravity-native'],
     credentialType: 'oauth',
@@ -804,23 +809,25 @@ function vaultRow(overrides: Partial<ScopedRow> = {}): ScopedRow {
     operations: ['read'],
     createdAtMs: null,
     accountId: ACCOUNT,
-    ...overrides,
   }
+  Object.assign(value, overrides)
+  return value
 }
 
 function servedCredential(
   version: number,
-  overrides: Partial<ServedCredential> = {},
+  overrides: FixtureOverrides<ServedCredential> = {},
 ): ServedCredential {
-  return {
+  const value: ServedCredential = {
     material: `test-access-v${version}`,
     recordVersion: version,
     expiresAtMs: Date.now() + 3_600_000,
     credentialId: CREDENTIAL,
     projectId: `test-project-v${version}`,
     accountId: ACCOUNT,
-    ...overrides,
   }
+  Object.assign(value, overrides)
+  return value
 }
 
 function localVault(rows: ScopedRow[] = [vaultRow()]): LocalVault {

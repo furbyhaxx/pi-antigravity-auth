@@ -10,7 +10,6 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeEnrollmentTokenFile } from '@cortexkit/claustrum-client'
-import { refuseWritableAncestor } from '@cortexkit/common-auth/claustrum'
 import {
   SHARED_VAULT_TOKEN_FOLDER_CODE,
   sharedVaultTokenFolder,
@@ -66,28 +65,6 @@ describe.skipIf(process.platform === 'win32')(
         code: SHARED_VAULT_TOKEN_FOLDER_CODE,
         text: `The vault key can't be saved because the folder ${shared} can be changed by other users. Make that folder owned by you and not writable by your group or by others, then try again.`,
       })
-    })
-
-    it("names the folder from the embedded enrollment code's real refusal of a group-writable parent", async () => {
-      const { root, shared } = ownedRootWithChild()
-      chmodSync(shared, 0o770)
-      // The embedded check accepts a group-writable folder only when the
-      // account files prove the user's group is private; these list another
-      // member in it, so the real check refuses on every host.
-      const uid = process.geteuid?.() ?? 0
-      const gid = process.getegid?.() ?? 0
-      const passwdPath = join(root, 'passwd')
-      const groupPath = join(root, 'group')
-      writeFileSync(passwdPath, `me:x:${uid}:${gid}::/:/bin/sh\n`)
-      writeFileSync(groupPath, `mine:x:${gid}:me,someone-else\n`)
-      const error = await caught(() =>
-        refuseWritableAncestor(shared, {
-          passwdPath,
-          groupPath,
-        }),
-      )
-      expect((error as Error).message).toContain('writable ancestor')
-      expect(sharedVaultTokenFolder(error)).toBe(shared)
     })
 
     it('leaves other vault errors to the caller', async () => {

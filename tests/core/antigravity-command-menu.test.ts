@@ -1,73 +1,53 @@
-/**
- * The `/antigravity` menu over the genuine common-auth `./commands` entry
- * and a genuine account repository on the public pool store, in a fresh
- * store under a disposable directory. Token exchange is never called.
- */
+import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-import {
-  initializeFreshAccountStore,
-  readAccountStoreAdmission,
-} from '../../src/core/account-migration.ts'
-import { createAccountRepositoryFactory } from '../../src/core/account-repository.ts'
 import type {
-  AccountRepository,
   AccountRepositoryRead,
+  AccountRow,
+  RoutingSettings,
 } from '../../src/core/account-repository-types.ts'
 import {
+  type AntigravityMenuAccounts,
   type AntigravityMenuSettings,
   type AntigravityRepositoryMenuOptions,
   createAntigravityCommandMenu,
 } from '../../src/core/antigravity-command-menu.ts'
-import {
-  loadCommonAuthCommands,
-  loadCommonAuthStoreModules,
-} from '../../src/core/common-auth-runtime.ts'
+import { loadCommonAuthCommands } from '../../src/core/common-auth-runtime.ts'
 
-let root: string
-let repository: AccountRepository
+let rows: AccountRow[]
+let routing: RoutingSettings
 
-beforeEach(async () => {
-  // The migration module refuses a parent path that traverses a symlink,
-  // and the system temp directory is one on macOS.
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'antigravity-menu-')))
-  const legacyPath = join(root, 'antigravity-accounts.json')
-  const modules = await loadCommonAuthStoreModules()
-  const initialized = await initializeFreshAccountStore(modules, {
-    legacyPath,
-    now: Date.now,
-  })
-  if (initialized.status !== 'completed') throw new Error('init pending')
-  const admission = await readAccountStoreAdmission(
-    legacyPath,
-    modules,
-    Date.now,
-  )
-  if (admission.status !== 'active') throw new Error(admission.status)
-  repository = createAccountRepositoryFactory(modules)({
-    paths: admission.paths,
-    now: Date.now,
-    exchange: async () => {
-      throw new Error('token exchange is not part of these tests')
-    },
-  })
-  for (const name of ['first', 'second']) {
-    await repository.login({
-      id: crypto.randomUUID(),
-      refreshToken: `refresh-${name}-secret`,
-      identity: `${name}@example.com`,
+const repository: AntigravityMenuAccounts = {
+  read: async () => ({ status: 'ready', rows, routing }),
+  setEnabled: async (ref, input) => {
+    const row = rows.find((entry) => entry.ref === ref)
+    if (!row) throw new Error('missing fixture row')
+    row.enabled = input.enabled
+    return { ref }
+  },
+  remove: async (ref) => {
+    rows = rows.filter((row) => row.ref !== ref)
+  },
+  selectAccount: async (target, ref) => {
+    if (target === 'active') routing.activeRow = ref
+    else routing.activeRowByFamily = { ...routing.activeRowByFamily, [target]: ref }
+  },
+}
+
+beforeEach(() => {
+  routing = { schemaVersion: 1 }
+  rows = ['first', 'second'].map((name, index) => ({
+    ref: { id: crypto.randomUUID(), credentialEpoch: 1, identity: `${name}@example.com` },
+    index,
+    enabled: true,
+    usable: true,
+    stamp: 'bound',
+    credential: { refreshToken: `refresh-${name}-secret` },
+    metadata: {
+      status: 'present',
       metadata: { email: `${name}@example.com`, addedAt: 1, lastUsed: 1 },
-    })
-  }
-})
-
-afterEach(async () => {
-  await repository.dispose()
-  rmSync(root, { recursive: true, force: true })
+    },
+    quota: { status: 'absent' },
+  }))
 })
 
 const invocation = { notify: () => undefined }
@@ -142,6 +122,7 @@ describe('createAntigravityCommandMenu', () => {
   it('disables exactly the credential the item was opened for', async () => {
     const built = await menu()
     const [, second] = await accountItemIds(built)
+    if (!second) throw new Error('missing account')
     const result = await built.apply(
       {
         command: 'antigravity',
@@ -158,13 +139,11 @@ describe('createAntigravityCommandMenu', () => {
   it('refuses an item whose credential was replaced, writing nothing', async () => {
     const built = await menu()
     const [first] = await accountItemIds(built)
+    if (!first) throw new Error('missing account')
     const [row] = await readyRows()
     if (!row) throw new Error('missing row')
-    await repository.replaceCredential(row.ref, {
-      refreshToken: 'refresh-replaced-secret',
-      identity: 'first@example.com',
-      disabled: 'keep',
-    })
+    row.ref = { ...row.ref, credentialEpoch: row.ref.credentialEpoch + 1 }
+    row.credential = { refreshToken: 'refresh-replaced-secret' }
     const result = await built.apply(
       {
         command: 'antigravity',
@@ -188,14 +167,14 @@ describe('createAntigravityCommandMenu', () => {
     const built = await menu()
     const [first, second] = await accountItemIds(built)
     if (!first || !second) throw new Error('missing items')
-    const rows = await readyRows()
-    await repository.reorder(rows.map((row) => row.ref.id).reverse())
+    rows.reverse()
     expect(await accountItemIds(built)).toEqual([second, first])
   })
 
   it('removes only after the library confirmation', async () => {
     const built = await menu()
     const [first] = await accountItemIds(built)
+    if (!first) throw new Error('missing account')
     const request = {
       command: 'antigravity',
       sectionId: 'accounts',
@@ -329,6 +308,7 @@ describe('createAntigravityCommandMenu account quota floor', () => {
       write: async () => 'stale',
     })
     const [first] = await accountItemIds(built)
+    if (!first) throw new Error('missing account')
     const result = await built.apply(
       {
         command: 'antigravity',

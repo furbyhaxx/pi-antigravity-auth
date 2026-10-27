@@ -91,9 +91,9 @@ describe('configureClaudeToolConfig', () => {
     const payload: RequestPayload = {}
     configureClaudeToolConfig(payload)
 
-    expect(payload.toolConfig).toBeDefined()
-    expect((payload.toolConfig as any).functionCallingConfig).toBeDefined()
-    expect((payload.toolConfig as any).functionCallingConfig.mode).toBe(
+    expect(payload['toolConfig']).toBeDefined()
+    expect((payload['toolConfig'] as any).functionCallingConfig).toBeDefined()
+    expect((payload['toolConfig'] as any).functionCallingConfig.mode).toBe(
       'VALIDATED',
     )
   })
@@ -104,8 +104,8 @@ describe('configureClaudeToolConfig', () => {
     }
     configureClaudeToolConfig(payload)
 
-    expect((payload.toolConfig as any).someOtherConfig).toBe(true)
-    expect((payload.toolConfig as any).functionCallingConfig.mode).toBe(
+    expect((payload['toolConfig'] as any).someOtherConfig).toBe(true)
+    expect((payload['toolConfig'] as any).functionCallingConfig.mode).toBe(
       'VALIDATED',
     )
   })
@@ -118,10 +118,10 @@ describe('configureClaudeToolConfig', () => {
     }
     configureClaudeToolConfig(payload)
 
-    expect((payload.toolConfig as any).functionCallingConfig.existingKey).toBe(
+    expect((payload['toolConfig'] as any).functionCallingConfig.existingKey).toBe(
       'value',
     )
-    expect((payload.toolConfig as any).functionCallingConfig.mode).toBe(
+    expect((payload['toolConfig'] as any).functionCallingConfig.mode).toBe(
       'VALIDATED',
     )
   })
@@ -134,7 +134,7 @@ describe('configureClaudeToolConfig', () => {
     }
     configureClaudeToolConfig(payload)
 
-    expect((payload.toolConfig as any).functionCallingConfig.mode).toBe(
+    expect((payload['toolConfig'] as any).functionCallingConfig.mode).toBe(
       'VALIDATED',
     )
   })
@@ -143,7 +143,7 @@ describe('configureClaudeToolConfig', () => {
     const payload: RequestPayload = { toolConfig: null }
     configureClaudeToolConfig(payload)
 
-    expect(payload.toolConfig).toBeDefined()
+    expect(payload['toolConfig']).toBeDefined()
   })
 })
 
@@ -265,7 +265,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload)
 
-      expect(payload.systemInstruction).toEqual({
+      expect(payload['systemInstruction']).toEqual({
         role: 'user',
         parts: [
           { text: 'You are a helpful assistant.' },
@@ -280,7 +280,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload)
 
-      expect(payload.systemInstruction).toBe(CLAUDE_INTERLEAVED_THINKING_HINT)
+      expect(payload['systemInstruction']).toBe(CLAUDE_INTERLEAVED_THINKING_HINT)
     })
 
     it('uses hint alone when existing instruction is whitespace', () => {
@@ -289,7 +289,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload)
 
-      expect(payload.systemInstruction).toBe(CLAUDE_INTERLEAVED_THINKING_HINT)
+      expect(payload['systemInstruction']).toBe(CLAUDE_INTERLEAVED_THINKING_HINT)
     })
 
     it('accepts custom hint', () => {
@@ -298,7 +298,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload, 'Custom hint.')
 
-      expect(payload.systemInstruction).toEqual({
+      expect(payload['systemInstruction']).toEqual({
         role: 'user',
         parts: [{ text: 'Base instruction.' }, { text: 'Custom hint.' }],
       })
@@ -314,7 +314,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload)
 
-      const sys = payload.systemInstruction as any
+      const sys = payload['systemInstruction'] as any
       expect(sys.parts[0].text).toBe('First part.')
       expect(sys.parts[1].text).toBe('Last part.')
       expect(sys.parts[2].text).toBe(CLAUDE_INTERLEAVED_THINKING_HINT)
@@ -328,7 +328,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload)
 
-      const sys = payload.systemInstruction as any
+      const sys = payload['systemInstruction'] as any
       expect(sys.parts[0].text).toBe('Only part.')
       expect(sys.parts[1].text).toBe(CLAUDE_INTERLEAVED_THINKING_HINT)
     })
@@ -341,7 +341,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload)
 
-      const sys = payload.systemInstruction as any
+      const sys = payload['systemInstruction'] as any
       expect(sys.parts).toHaveLength(2)
       expect(sys.parts[1].text).toBe(CLAUDE_INTERLEAVED_THINKING_HINT)
     })
@@ -352,7 +352,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload)
 
-      const sys = payload.systemInstruction as any
+      const sys = payload['systemInstruction'] as any
       expect(sys.parts).toEqual([{ text: CLAUDE_INTERLEAVED_THINKING_HINT }])
     })
   })
@@ -364,7 +364,7 @@ describe('appendClaudeThinkingHint', () => {
       }
       appendClaudeThinkingHint(payload)
 
-      expect(payload.systemInstruction).toEqual({
+      expect(payload['systemInstruction']).toEqual({
         parts: [{ text: CLAUDE_INTERLEAVED_THINKING_HINT }],
       })
     })
@@ -373,7 +373,7 @@ describe('appendClaudeThinkingHint', () => {
       const payload: RequestPayload = {}
       appendClaudeThinkingHint(payload)
 
-      expect(payload.systemInstruction).toBeUndefined()
+      expect(payload['systemInstruction']).toBeUndefined()
     })
   })
 
@@ -387,7 +387,7 @@ describe('appendClaudeThinkingHint', () => {
       appendClaudeThinkingHint(payload)
       appendClaudeThinkingHint(payload)
 
-      const sys = payload.systemInstruction as any
+      const sys = payload['systemInstruction'] as any
       const hintParts = sys.parts.filter(
         (p: any) => p.text === CLAUDE_INTERLEAVED_THINKING_HINT,
       )
@@ -402,7 +402,7 @@ describe('appendClaudeThinkingHint', () => {
       appendClaudeThinkingHint(payload)
       appendClaudeThinkingHint(payload)
 
-      const sys = payload.systemInstruction as any
+      const sys = payload['systemInstruction'] as any
       const hintParts = sys.parts.filter(
         (p: any) => p.text === CLAUDE_INTERLEAVED_THINKING_HINT,
       )
@@ -416,7 +416,7 @@ describe('appendClaudeThinkingHint', () => {
       appendClaudeThinkingHint(payload)
       appendClaudeThinkingHint(payload)
 
-      const sys = payload.systemInstruction as any
+      const sys = payload['systemInstruction'] as any
       const hintParts = sys.parts.filter(
         (p: any) => p.text === CLAUDE_INTERLEAVED_THINKING_HINT,
       )
@@ -481,7 +481,7 @@ describe('normalizeClaudeTools', () => {
         'decl=get_weather,src=functionDeclarations,hasSchema=y',
       )
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       expect(tools).toHaveLength(1)
       expect(tools[0].functionDeclarations).toHaveLength(1)
       expect(tools[0].functionDeclarations[0].name).toBe('get_weather')
@@ -501,7 +501,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, identityClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       expect(tools[0].functionDeclarations).toHaveLength(2)
     })
   })
@@ -532,7 +532,7 @@ describe('normalizeClaudeTools', () => {
         'decl=search,src=function/custom,hasSchema=y',
       )
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       expect(tools[0].functionDeclarations[0].name).toBe('search')
     })
 
@@ -575,7 +575,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, identityClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       expect(tools[0].functionDeclarations[0].name).toBe('direct_tool')
     })
   })
@@ -597,7 +597,7 @@ describe('normalizeClaudeTools', () => {
 
       expect(result.toolDebugMissing).toBe(1)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       const params = tools[0].functionDeclarations[0].parameters
       expect(params.type).toBe('object')
       expect(params.properties._placeholder).toBeDefined()
@@ -618,7 +618,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, identityClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       const params = tools[0].functionDeclarations[0].parameters
       expect(params.properties._placeholder).toBeDefined()
     })
@@ -642,7 +642,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, identityClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       const params = tools[0].functionDeclarations[0].parameters
       expect(params.properties.existingProp).toBeDefined()
       expect(params.properties._placeholder).toBeUndefined()
@@ -666,7 +666,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, realClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       const params = tools[0].functionDeclarations[0].parameters
       expect(params.$schema).toBeUndefined()
       expect(params.properties.arg).toBeDefined()
@@ -691,7 +691,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, identityClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       expect(tools[0].functionDeclarations[0].name).toBe(
         'tool_with_special_chars_',
       )
@@ -715,7 +715,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, identityClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       expect(tools[0].functionDeclarations[0].name).toHaveLength(64)
     })
 
@@ -736,7 +736,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, identityClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       expect(tools[0].functionDeclarations[0].name).toBe('tool-0')
     })
   })
@@ -760,7 +760,7 @@ describe('normalizeClaudeTools', () => {
 
       normalizeClaudeTools(payload, identityClean)
 
-      const tools = payload.tools as any[]
+      const tools = payload['tools'] as any[]
       expect(tools).toHaveLength(2)
       expect(tools[0].functionDeclarations).toBeDefined()
       expect(tools[1].codeExecution).toBeDefined()
@@ -780,7 +780,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    expect((payload.toolConfig as any)?.functionCallingConfig?.mode).toBe(
+    expect((payload['toolConfig'] as any)?.functionCallingConfig?.mode).toBe(
       'VALIDATED',
     )
   })
@@ -794,7 +794,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    const genConfig = payload.generationConfig as any
+    const genConfig = payload['generationConfig'] as any
     expect(genConfig.thinkingConfig.include_thoughts).toBe(true)
     expect(genConfig.thinkingConfig.thinking_budget).toBe(8192)
   })
@@ -809,7 +809,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    const genConfig = payload.generationConfig as any
+    const genConfig = payload['generationConfig'] as any
     expect(genConfig.thinkingConfig.thinking_budget).toBe(32768)
   })
 
@@ -824,7 +824,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    const genConfig = payload.generationConfig as any
+    const genConfig = payload['generationConfig'] as any
     expect(genConfig.maxOutputTokens).toBe(computeClaudeMaxOutputTokens(8192))
   })
 
@@ -837,7 +837,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    const genConfig = payload.generationConfig as any
+    const genConfig = payload['generationConfig'] as any
     expect(genConfig?.thinkingConfig).toBeUndefined()
   })
 
@@ -862,7 +862,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    const sys = payload.systemInstruction as { parts: Array<{ text?: string }> }
+    const sys = payload['systemInstruction'] as { parts: Array<{ text?: string }> }
     expect(sys.parts.map((part) => part.text)).toContain(
       CLAUDE_INTERLEAVED_THINKING_HINT,
     )
@@ -878,7 +878,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    expect(payload.systemInstruction as string).not.toContain(
+    expect(payload['systemInstruction'] as string).not.toContain(
       CLAUDE_INTERLEAVED_THINKING_HINT,
     )
   })
@@ -904,7 +904,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    expect(payload.systemInstruction as string).not.toContain(
+    expect(payload['systemInstruction'] as string).not.toContain(
       CLAUDE_INTERLEAVED_THINKING_HINT,
     )
   })
@@ -935,7 +935,7 @@ describe('applyClaudeTransforms', () => {
       cleanJSONSchema: mockCleanJSONSchema,
     })
 
-    const genConfig = payload.generationConfig as any
+    const genConfig = payload['generationConfig'] as any
     expect(genConfig.stopSequences).toEqual(['END'])
     expect(genConfig.stop_sequences).toBeUndefined()
   })

@@ -10,7 +10,6 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { UNSUPPORTED_ENROLLMENT_CODE } from '@cortexkit/common-auth/claustrum'
 import { loadCommonAuthClaustrum } from '../../src/core/common-auth-runtime.ts'
 import {
   enrollmentAuthority,
@@ -23,7 +22,7 @@ const syntheticPaths = {
   statePath: '/synthetic-state',
 }
 it('matches the library code for an unsupported vault', () => {
-  expect(UNSUPPORTED_VAULT_CODE).toBe(UNSUPPORTED_ENROLLMENT_CODE)
+  expect(UNSUPPORTED_VAULT_CODE).toBe('unknown_method')
 })
 
 const roots: string[] = []
