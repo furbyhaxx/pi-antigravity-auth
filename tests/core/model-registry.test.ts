@@ -13,6 +13,7 @@ import {
 import { resolveModelWithTier } from "../../src/core/transform/model-resolver.ts";
 import capturedCatalog from "../fixtures/agy-cli-1.3.3/current-model-metadata.json";
 import serverCatalog from "../fixtures/agy-cli-1.3.5/server-model-catalog.json";
+import { defined } from "../support/defined.ts";
 
 const REQUIRED_PUBLIC_MODEL_FIELDS = [
 	"id",
@@ -140,7 +141,10 @@ describe("model registry", () => {
 			"gemini-4-argon",
 		]) {
 			const efforts = ["low", "medium", "high"];
-			const definition = definitions[`antigravity-${family}`]!;
+			const definition = defined(
+				definitions[`antigravity-${family}`],
+				`${family} model definition`,
+			);
 			expect(Object.keys(definition.variants ?? {})).toEqual(efforts);
 			for (const effort of efforts) {
 				const metadata = AGY_NATIVE_MODEL_DEFINITIONS[`${family}-${effort}`];

@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 
 import { ACTIVE_FETCH_TIMEOUT_MS, fetchWithActiveTimeout } from "../../src/core/fetch-timeout.ts";
+import { defined } from "../support/defined.ts";
+
+type FetchMockImplementation = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+function mockFetch(implementation: FetchMockImplementation): typeof fetch {
+	const fetchImplementation = Object.assign(implementation, {
+		preconnect: globalThis.fetch.preconnect,
+	});
+	return Object.assign(mock(fetchImplementation), {
+		preconnect: globalThis.fetch.preconnect,
+	});
+}
 
 /**
  * Builds a mock fetch whose response promise respects the request's
@@ -10,7 +22,7 @@ import { ACTIVE_FETCH_TIMEOUT_MS, fetchWithActiveTimeout } from "../../src/core/
  * response headers.
  */
 function hangingFetch(): typeof fetch {
-	return mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+	return mockFetch(async (_input: RequestInfo | URL, init?: RequestInit) => {
 		return new Promise<Response>((_resolve, reject) => {
 			const signal = init?.signal;
 			if (signal?.aborted) {
@@ -25,14 +37,14 @@ function hangingFetch(): typeof fetch {
 				{ once: true },
 			);
 		});
-	}) as unknown as typeof fetch;
+	});
 }
 
 function delayedResponseFetch(resolveAfterMs: number, body: string, status = 200): typeof fetch {
-	return mock(async (_input, _init) => {
+	return mockFetch(async (_input, _init) => {
 		await new Promise((resolve) => setTimeout(resolve, resolveAfterMs));
 		return new Response(body, { status });
-	}) as unknown as typeof fetch;
+	});
 }
 
 function observeAbortListeners(signal: AbortSignal) {
@@ -59,21 +71,22 @@ function observeAbortListeners(signal: AbortSignal) {
 }
 
 function controlledFetch(cancel?: (reason: unknown) => void) {
-	let bodyController!: ReadableStreamDefaultController<Uint8Array>;
-	let requestSignal!: AbortSignal;
-	let original!: Response;
-	const fetchImpl = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
-		requestSignal = init!.signal!;
+	let bodyController: ReadableStreamDefaultController<Uint8Array> | undefined;
+	let requestSignal: AbortSignal | undefined;
+	let original: Response | undefined;
+	const fetchImpl = mockFetch(async (_input: RequestInfo | URL, init?: RequestInit) => {
+		requestSignal = defined(init?.signal, "fetch request signal");
 		const body = new ReadableStream<Uint8Array>(
 			{
 				start(controller) {
 					bodyController = controller;
-					if (requestSignal.aborted) controller.error(requestSignal.reason);
+					const signal = defined(requestSignal, "fetch request signal");
+					if (signal.aborted) controller.error(signal.reason);
 					else
-						requestSignal.addEventListener(
+						signal.addEventListener(
 							"abort",
 							() => {
-								controller.error(requestSignal.reason);
+								controller.error(signal.reason);
 							},
 							{ once: true },
 						);
@@ -82,24 +95,29 @@ function controlledFetch(cancel?: (reason: unknown) => void) {
 			},
 			{ highWaterMark: 0 },
 		);
-		original = new Response(body, {
+		const response = new Response(body, {
 			status: 206,
 			statusText: "Partial Content",
 			headers: { "x-stream": "yes" },
 		});
-		Object.defineProperties(original, {
+		Object.defineProperties(response, {
 			url: { value: "https://example.test/redirected" },
 			type: { value: "cors" },
 			redirected: { value: true },
 		});
-		return original;
-	}) as unknown as typeof fetch;
+		original = response;
+		return response;
+	});
 	return {
 		fetchImpl,
-		controller: () => bodyController,
-		signal: () => requestSignal,
-		original: () => original,
+		controller: () => defined(bodyController, "response body controller"),
+		signal: () => defined(requestSignal, "fetch request signal"),
+		original: () => defined(original, "original response"),
 	};
+}
+
+function responseBody(response: Response): ReadableStream<Uint8Array> {
+	return defined(response.body, "response body");
 }
 
 describe("ACTIVE_FETCH_TIMEOUT_MS", () => {
@@ -111,7 +129,10 @@ describe("ACTIVE_FETCH_TIMEOUT_MS", () => {
 describe("caller/body lifetime without AbortSignal.any", () => {
 	let anyDescriptor: PropertyDescriptor;
 	beforeEach(() => {
-		anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any")!;
+		anyDescriptor = defined(
+			Object.getOwnPropertyDescriptor(AbortSignal, "any"),
+			"AbortSignal.any property descriptor",
+		);
 		Object.defineProperty(AbortSignal, "any", {
 			...anyDescriptor,
 			value: undefined,
@@ -130,7 +151,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 		const source = controlledFetch();
 		const response = await fetchWithActiveTimeout(input, {}, { fetchImpl: source.fetchImpl });
 		expect(listeners.size).toBe(1);
-		const reader = response.body!.getReader();
+		const reader = responseBody(response).getReader();
 		const pending = reader.read();
 		const reason = new Error("Request input canceled after headers");
 		caller.abort(reason);
@@ -138,7 +159,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 		await expect(pending).rejects.toBe(reason);
 		expect(source.signal().reason).toBe(reason);
 		expect(listeners.size).toBe(0);
-		expect(source.original().body!.locked).toBe(false);
+		expect(responseBody(source.original()).locked).toBe(false);
 		reader.releaseLock();
 	});
 
@@ -166,10 +187,10 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 				override.abort(reason);
 				await expect(pending).rejects.toBe(reason);
 				expect(source.signal().reason).toBe(reason);
-				expect(source.original().body!.locked).toBe(false);
+				expect(responseBody(source.original()).locked).toBe(false);
 			} else {
 				expect(response).toBe(source.original());
-				await response.body!.cancel();
+				await responseBody(response).cancel();
 			}
 		}
 	});
@@ -228,7 +249,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 		);
 		expect(deadlines.size).toBe(0);
 		expect(callers.size).toBe(1);
-		const reader = response.body!.getReader();
+		const reader = responseBody(response).getReader();
 		const pending = reader.read();
 		const reason = new Error("caller body cancellation");
 		caller.abort(reason);
@@ -236,7 +257,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 		await expect(pending).rejects.toBe(reason);
 		expect(source.signal().reason).toBe(reason);
 		expect(callers.size).toBe(0);
-		expect(source.original().body!.locked).toBe(false);
+		expect(responseBody(source.original()).locked).toBe(false);
 		reader.releaseLock();
 	});
 
@@ -254,7 +275,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 			},
 			{ fetchImpl: source.fetchImpl },
 		);
-		const reader = response.body!.getReader();
+		const reader = responseBody(response).getReader();
 		const first = reader.read();
 		source.controller().enqueue(new Uint8Array([0, 255, 128]));
 		expect((await first).value).toEqual(new Uint8Array([0, 255, 128]));
@@ -268,7 +289,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 		source.controller().close();
 		expect((await reader.read()).done).toBe(true);
 		expect(callers.size).toBe(0);
-		expect(source.original().body!.locked).toBe(false);
+		expect(responseBody(source.original()).locked).toBe(false);
 		caller.abort(new Error("after EOF"));
 		expect(source.signal().aborted).toBe(false);
 		reader.releaseLock();
@@ -316,7 +337,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 		source.controller().error(reason);
 		await expect(response.text()).rejects.toBe(reason);
 		expect(listeners.size).toBe(0);
-		expect(source.original().body!.locked).toBe(false);
+		expect(responseBody(source.original()).locked).toBe(false);
 	});
 
 	it("detaches and releases an idle body when the source errors or reaches empty EOF", async () => {
@@ -336,7 +357,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 			else source.controller().close();
 			await Promise.resolve();
 			expect(listeners.size).toBe(0);
-			expect(source.original().body!.locked).toBe(false);
+			expect(responseBody(source.original()).locked).toBe(false);
 			if (error) await expect(response.text()).rejects.toBe(error);
 			else expect(await response.text()).toBe("");
 		}
@@ -359,7 +380,7 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 		await Promise.resolve();
 		expect(source.signal().reason).toBe(reason);
 		expect(listeners.size).toBe(0);
-		expect(source.original().body!.locked).toBe(false);
+		expect(responseBody(source.original()).locked).toBe(false);
 		await expect(response.text()).rejects.toBe(reason);
 	});
 
@@ -377,10 +398,10 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 		);
 		expect(listeners.size).toBe(1);
 		const reason = { cancel: "consumer" };
-		await response.body!.cancel(reason);
+		await responseBody(response).cancel(reason);
 		expect(cancel).toHaveBeenCalledWith(reason);
 		expect(listeners.size).toBe(0);
-		expect(source.original().body!.locked).toBe(false);
+		expect(responseBody(source.original()).locked).toBe(false);
 		caller.abort(new Error("after cancel"));
 		expect(source.signal().aborted).toBe(false);
 	});
@@ -399,9 +420,9 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 			},
 			{ fetchImpl: source.fetchImpl },
 		);
-		await expect(response.body!.cancel()).rejects.toBe(reason);
+		await expect(responseBody(response).cancel()).rejects.toBe(reason);
 		expect(listeners.size).toBe(0);
-		expect(source.original().body!.locked).toBe(false);
+		expect(responseBody(source.original()).locked).toBe(false);
 	});
 
 	it("cleans up immediately for null bodies and fetch rejection", async () => {
@@ -413,12 +434,12 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 			spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
 			const original = new Response(null, { status: 204 });
 			const failure = new Error("fetch failed");
-			const fetchImpl = mock(async () => {
+			const fetchImpl = mockFetch(async () => {
 				expect(callers.size).toBe(1);
 				expect(deadlines.size).toBe(1);
 				if (reject) throw failure;
 				return original;
-			}) as unknown as typeof fetch;
+			});
 			const pending = fetchWithActiveTimeout(
 				"https://example.test",
 				{
@@ -436,7 +457,10 @@ describe("caller/body lifetime without AbortSignal.any", () => {
 
 describe("fetchWithActiveTimeout", () => {
 	it("works without AbortSignal.any with a caller signal", async () => {
-		const descriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any")!;
+		const descriptor = defined(
+			Object.getOwnPropertyDescriptor(AbortSignal, "any"),
+			"AbortSignal.any property descriptor",
+		);
 		Object.defineProperty(AbortSignal, "any", {
 			...descriptor,
 			value: undefined,
@@ -469,7 +493,8 @@ describe("fetchWithActiveTimeout", () => {
 			caught = error;
 		}
 		expect(caught).toBeInstanceOf(DOMException);
-		const name = (caught as DOMException).name;
+		if (!(caught instanceof DOMException)) throw new Error("expected a DOMException");
+		const name = caught.name;
 		expect(name === "AbortError" || name === "TimeoutError").toBe(true);
 		const elapsed = Date.now() - start;
 		expect(elapsed).toBeGreaterThanOrEqual(45);
@@ -505,10 +530,10 @@ describe("fetchWithActiveTimeout", () => {
 
 	it("forwards headers, method, and body to the underlying fetchImpl", async () => {
 		const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
-		const fetchImpl = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+		const fetchImpl = mockFetch(async (input: RequestInfo | URL, init?: RequestInit) => {
 			calls.push([input, init]);
 			return new Response("ok", { status: 200 });
-		}) as unknown as typeof fetch;
+		});
 
 		await fetchWithActiveTimeout(
 			"https://example.test/echo",
@@ -521,13 +546,13 @@ describe("fetchWithActiveTimeout", () => {
 		);
 
 		expect(calls.length).toBe(1);
-		const [input, init] = calls[0]!;
+		const [input, init] = defined(calls[0], "fetch call");
 		expect(input).toBe("https://example.test/echo");
 		expect(init?.method).toBe("POST");
 		expect(init?.body).toBe("payload");
-		const headers = init?.headers as Record<string, string>;
-		expect(headers["X-Trace"]).toBe("abc");
-		expect(headers["Content-Type"]).toBe("text/plain");
+		const headers = new Headers(init?.headers);
+		expect(headers.get("X-Trace")).toBe("abc");
+		expect(headers.get("Content-Type")).toBe("text/plain");
 		expect(init?.signal).toBeInstanceOf(AbortSignal);
 	});
 
@@ -546,7 +571,8 @@ describe("fetchWithActiveTimeout", () => {
 			caught = error;
 		}
 		expect(caught).toBeInstanceOf(DOMException);
-		const name = (caught as DOMException).name;
+		if (!(caught instanceof DOMException)) throw new Error("expected a DOMException");
+		const name = caught.name;
 		expect(name === "AbortError" || name === "TimeoutError").toBe(true);
 	});
 });

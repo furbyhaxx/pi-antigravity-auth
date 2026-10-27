@@ -9,11 +9,11 @@ import {
 	onboardManagedProject,
 } from "../../src/core/project.ts";
 
-// `fetchWithAgyCliTransport` is imported dynamically inside each test so the
-// `mock.module` patch below takes effect — bun resolves the import against the
-// mocked module graph at call time.
+type AgyTransport = typeof import("../../src/core/agy-transport.ts").fetchWithAgyCliTransport;
+const fetchWithAgyCliTransportMock = mock<AgyTransport>();
+
 mock.module("../../src/core/agy-transport.ts", () => ({
-	fetchWithAgyCliTransport: mock(),
+	fetchWithAgyCliTransport: fetchWithAgyCliTransportMock,
 }));
 
 function mockResponse(body: unknown): Response {
@@ -33,9 +33,10 @@ describe("project bootstrap", () => {
 	});
 
 	it("loads managed project with captured agy CLI loadCodeAssist fingerprint", async () => {
-		const fetchSpy = mock().mockResolvedValue(mockResponse({ cloudaicompanionProject: "proj" }));
-		const { fetchWithAgyCliTransport } = await import("../../src/core/agy-transport.ts");
-		(fetchWithAgyCliTransport as any).mockImplementation(fetchSpy);
+		const fetchSpy = mock<AgyTransport>().mockResolvedValue(
+			mockResponse({ cloudaicompanionProject: "proj" }),
+		);
+		fetchWithAgyCliTransportMock.mockImplementation(fetchSpy);
 
 		const result = await loadManagedProject("token", "ignored-project");
 
@@ -58,14 +59,13 @@ describe("project bootstrap", () => {
 	});
 
 	it("onboards with minimal tier body on prod first", async () => {
-		const fetchSpy = mock().mockResolvedValue(
+		const fetchSpy = mock<AgyTransport>().mockResolvedValue(
 			mockResponse({
 				done: true,
 				response: { cloudaicompanionProject: { id: "managed-project" } },
 			}),
 		);
-		const { fetchWithAgyCliTransport } = await import("../../src/core/agy-transport.ts");
-		(fetchWithAgyCliTransport as any).mockImplementation(fetchSpy);
+		fetchWithAgyCliTransportMock.mockImplementation(fetchSpy);
 
 		const result = await onboardManagedProject("token", "free-tier", "legacy-project");
 
@@ -78,11 +78,10 @@ describe("project bootstrap", () => {
 	});
 
 	it("reuses project context when discovery expands the packed refresh value", async () => {
-		const fetchSpy = mock().mockResolvedValue(
+		const fetchSpy = mock<AgyTransport>().mockResolvedValue(
 			mockResponse({ cloudaicompanionProject: { id: "managed-project" } }),
 		);
-		const { fetchWithAgyCliTransport } = await import("../../src/core/agy-transport.ts");
-		(fetchWithAgyCliTransport as any).mockImplementation(fetchSpy);
+		fetchWithAgyCliTransportMock.mockImplementation(fetchSpy);
 
 		const originalAuth = {
 			type: "oauth" as const,
@@ -103,15 +102,14 @@ describe("project bootstrap", () => {
 	it("Fix2-tier-capture: capturedTier is returned from ensureProjectContext when loadCodeAssist returns currentTier", async () => {
 		const capturedNow = 1_785_000_000_000;
 		spyOn(Date, "now").mockImplementation(() => capturedNow);
-		const fetchSpy = mock().mockResolvedValue(
+		const fetchSpy = mock<AgyTransport>().mockResolvedValue(
 			mockResponse({
 				cloudaicompanionProject: { id: "my-project" },
 				currentTier: { id: "pro-tier" },
 				paidTier: { id: "g1-pro-tier" },
 			}),
 		);
-		const { fetchWithAgyCliTransport } = await import("../../src/core/agy-transport.ts");
-		(fetchWithAgyCliTransport as any).mockImplementation(fetchSpy);
+		fetchWithAgyCliTransportMock.mockImplementation(fetchSpy);
 
 		const auth = {
 			type: "oauth" as const,
@@ -130,11 +128,10 @@ describe("project bootstrap", () => {
 	});
 
 	it("Fix2-tier-absent: capturedTier is absent when loadCodeAssist returns no currentTier", async () => {
-		const fetchSpy = mock().mockResolvedValue(
+		const fetchSpy = mock<AgyTransport>().mockResolvedValue(
 			mockResponse({ cloudaicompanionProject: { id: "my-project" } }),
 		);
-		const { fetchWithAgyCliTransport } = await import("../../src/core/agy-transport.ts");
-		(fetchWithAgyCliTransport as any).mockImplementation(fetchSpy);
+		fetchWithAgyCliTransportMock.mockImplementation(fetchSpy);
 
 		const auth = {
 			type: "oauth" as const,
@@ -152,7 +149,7 @@ describe("project bootstrap", () => {
 	it("does not retry managed-project provisioning after a cached failure expires", async () => {
 		let now = 1_000;
 		spyOn(Date, "now").mockImplementation(() => now);
-		const fetchSpy = mock(async (url: string) => {
+		const fetchSpy = mock<AgyTransport>(async (url: string) => {
 			if (url.includes("loadCodeAssist")) {
 				return mockResponse({
 					allowedTiers: [{ id: "free-tier", isDefault: true }],
@@ -163,8 +160,7 @@ describe("project bootstrap", () => {
 				statusText: "Service Unavailable",
 			});
 		});
-		const { fetchWithAgyCliTransport } = await import("../../src/core/agy-transport.ts");
-		(fetchWithAgyCliTransport as any).mockImplementation(fetchSpy);
+		fetchWithAgyCliTransportMock.mockImplementation(fetchSpy);
 
 		const auth = {
 			type: "oauth" as const,

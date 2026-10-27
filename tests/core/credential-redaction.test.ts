@@ -7,6 +7,7 @@ import {
 	redactCredentialText,
 	redactProjectIdText,
 } from "../../src/core/credential-redaction.ts";
+import { defined } from "../support/defined.ts";
 import { runCommand } from "../support/run-command.ts";
 
 const selected = "opaque-selected-token";
@@ -128,7 +129,7 @@ describe("credential redaction", () => {
 		);
 		const safe = await redactCredentialResponse(original, selected);
 		await expect(safe.text()).rejects.toBe(failure);
-		expect(original.body!.locked).toBe(false);
+		expect(defined(original.body, "original response body").locked).toBe(false);
 	});
 
 	it("releases the owned SSE reader on cancellation without changing its reason", async () => {
@@ -143,9 +144,9 @@ describe("credential redaction", () => {
 		);
 		const safe = await redactCredentialResponse(original, selected);
 		const reason = new DOMException("user escape", "AbortError");
-		await safe.body!.cancel(reason);
+		await defined(safe.body, "redacted response body").cancel(reason);
 		expect(cancelled).toBe(reason);
-		expect(original.body!.locked).toBe(false);
+		expect(defined(original.body, "original response body").locked).toBe(false);
 	});
 
 	it("redacts failed HTTP body-read errors while preserving safe classification", async () => {
@@ -186,11 +187,11 @@ describe("credential redaction", () => {
 			{ headers: { "content-type": "text/event-stream" } },
 		);
 		const safe = await redactCredentialResponse(original, selected);
-		await expect(safe.body!.cancel(reason)).rejects.toBe(failure);
+		await expect(defined(safe.body, "redacted response body").cancel(reason)).rejects.toBe(failure);
 		expect(received).toBe(reason);
 		expect(failure.message).toBe("echo [credential]");
 		expect(failure.code).toBe("CANCEL_FAILED");
-		expect(original.body!.locked).toBe(false);
+		expect(defined(original.body, "original response body").locked).toBe(false);
 	});
 
 	it("removes stale SSE length while redacting fragmented error frames and preserving other metadata", async () => {
@@ -218,7 +219,7 @@ describe("credential redaction", () => {
 		expect(safe.headers.get("retry-after")).toBe("12");
 		expect(safe.headers.get("x-kept")).toBe(selected);
 		expect(await safe.text()).toBe(event.replace(selected, "[credential]"));
-		expect(original.body!.locked).toBe(false);
+		expect(defined(original.body, "original response body").locked).toBe(false);
 	});
 
 	it("scrubs exact selected credentials and JWT/Bearer shapes with the plain marker", () => {
@@ -368,7 +369,7 @@ describe("credential redaction", () => {
 		expect(JSON.parse(output.slice("data: ".length).trim())).toEqual({
 			error: { message: "[credential]", code: "UNCHANGED" },
 		});
-		expect(original.body!.locked).toBe(false);
+		expect(defined(original.body, "original response body").locked).toBe(false);
 	});
 	it("preserves transformed success bytes, response metadata and cancellation reason", async () => {
 		const bytes = `data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text: `π ${detail} {"error":"${selected}"}` }] } }] })}\r\n\r\n`;
@@ -396,7 +397,7 @@ describe("credential redaction", () => {
 		);
 		const wrapped = await redactCredentialResponse(pending, selected);
 		const reason = new DOMException("user escape", "AbortError");
-		await wrapped.body!.cancel(reason);
+		await defined(wrapped.body, "wrapped response body").cancel(reason);
 		expect(cancelled).toBe(reason);
 	});
 	it("redacts fragmented SSE errors and body failures without changing status or retry headers", async () => {

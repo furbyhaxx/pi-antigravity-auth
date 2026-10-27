@@ -1,6 +1,7 @@
 import { describe, expect, it, spyOn } from "bun:test";
 
 import { forwardAbort } from "../../src/core/abort-forwarding.ts";
+import { defined } from "../support/defined.ts";
 
 describe("forwardAbort", () => {
 	it("forwards a pre-abort without registering a listener", () => {
@@ -39,7 +40,7 @@ describe("forwardAbort", () => {
 		const remove = spyOn(caller.signal, "removeEventListener");
 		const detach = forwardAbort(caller.signal, target);
 		expect(add).toHaveBeenCalledTimes(1);
-		const listener = add.mock.calls[0]![1];
+		const listener = defined(add.mock.calls[0], "abort listener registration")[1];
 		detach();
 		detach();
 		expect(remove).toHaveBeenCalledTimes(1);

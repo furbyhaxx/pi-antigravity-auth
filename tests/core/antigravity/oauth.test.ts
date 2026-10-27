@@ -11,6 +11,7 @@ import {
 	ANTIGRAVITY_REDIRECT_URI,
 	ANTIGRAVITY_SCOPES,
 } from "../../../src/core/constants.ts";
+import { defined } from "../../support/defined.ts";
 
 // Project discovery, token requests and userinfo requests all use the same mocked fetch.
 mock.module("../../../src/core/agy-transport.ts", () => ({
@@ -42,6 +43,14 @@ function tokenResponseBody(
 
 function userInfoBody(email = "user@example.com", name = "Alice Example"): string {
 	return JSON.stringify({ email, name });
+}
+
+function requestForm(init: RequestInit | undefined, what: string): URLSearchParams {
+	const body = defined(init?.body, what);
+	if (typeof body === "string" || body instanceof URLSearchParams) {
+		return new URLSearchParams(body);
+	}
+	throw new Error(`${what} is not URL-encoded text`);
 }
 
 describe("Antigravity OAuth", () => {
@@ -147,19 +156,21 @@ describe("Antigravity OAuth", () => {
 			expect(Math.abs(result.expires - expectedExpires)).toBeLessThan(5_000);
 
 			// Token POST sent the right verifier + code; userinfo used Bearer auth.
-			const calls = fetchSpy.mock.calls as Array<[string, RequestInit]>;
+			const calls = fetchSpy.mock.calls;
 			expect(calls.length).toBe(2);
-			const [tokenUrl, tokenInit] = calls[0]!;
-			const [userinfoUrl, userinfoInit] = calls[1]!;
+			const [tokenUrl, tokenInit] = defined(calls[0], "token exchange fetch call");
+			const [userinfoUrl, userinfoInit] = defined(calls[1], "userinfo fetch call");
 			expect(tokenUrl).toBe("https://oauth2.googleapis.com/token");
-			const tokenBody = new URLSearchParams(tokenInit.body as string);
+			const tokenBody = requestForm(tokenInit, "token request body");
 			expect(tokenBody.get("code")).toBe("auth-code");
 			expect(tokenBody.get("code_verifier")).toBe(verifier);
 			expect(tokenBody.get("client_id")).toBe(ANTIGRAVITY_CLIENT_ID);
 			expect(tokenBody.get("redirect_uri")).toBe(ANTIGRAVITY_REDIRECT_URI);
 			expect(userinfoUrl).toBe("https://www.googleapis.com/oauth2/v1/userinfo?alt=json");
-			const userinfoHeaders = userinfoInit.headers as Record<string, string>;
-			expect(userinfoHeaders["Authorization"]).toBe("Bearer access-1");
+			const userinfoHeaders = new Headers(
+				defined(userinfoInit, "userinfo request options").headers,
+			);
+			expect(userinfoHeaders.get("Authorization")).toBe("Bearer access-1");
 		});
 
 		it("returns failed when the token exchange responds non-OK with the response body", async () => {
@@ -246,11 +257,15 @@ describe("Antigravity OAuth", () => {
 					throw new Error("No later provider call is admitted");
 				});
 				const { url } = await authorizeAntigravity();
-				const pending = exchangeAntigravity("code", new URL(url).searchParams.get("state")!, {
-					admit: async () => {
-						if (!allowed) throw new Error("secret must not escape");
+				const pending = exchangeAntigravity(
+					"code",
+					defined(new URL(url).searchParams.get("state"), "authorization state"),
+					{
+						admit: async () => {
+							if (!allowed) throw new Error("secret must not escape");
+						},
 					},
-				});
+				);
 				await entered.promise;
 				allowed = false;
 				response.resolve(new Response(stage === "token" ? tokenResponseBody() : userInfoBody()));
@@ -279,16 +294,20 @@ describe("Antigravity OAuth", () => {
 					throw new Error("Project fallback must not run after revocation");
 				});
 				const { url } = await authorizeAntigravity();
-				const result = await exchangeAntigravity("code", new URL(url).searchParams.get("state")!, {
-					signal: controller.signal,
-					admit: async () => {
-						// Refuse admission once so project discovery cannot retry after suppressing the error.
-						if (refuse && refusal === "admit") {
-							refuse = false;
-							throw new Error("secret admission detail");
-						}
+				const result = await exchangeAntigravity(
+					"code",
+					defined(new URL(url).searchParams.get("state"), "authorization state"),
+					{
+						signal: controller.signal,
+						admit: async () => {
+							// Refuse admission once so project discovery cannot retry after suppressing the error.
+							if (refuse && refusal === "admit") {
+								refuse = false;
+								throw new Error("secret admission detail");
+							}
+						},
 					},
-				});
+				);
 				expect(result).toEqual({
 					type: "failed",
 					error: "Antigravity sign-in is no longer authorized.",
@@ -319,12 +338,16 @@ describe("Antigravity OAuth", () => {
 				});
 			});
 			const { url } = await authorizeAntigravity();
-			const pending = exchangeAntigravity("code", new URL(url).searchParams.get("state")!, {
-				signal: controller.signal,
-				admit: async () => {
-					checked.push(calls);
+			const pending = exchangeAntigravity(
+				"code",
+				defined(new URL(url).searchParams.get("state"), "authorization state"),
+				{
+					signal: controller.signal,
+					admit: async () => {
+						checked.push(calls);
+					},
 				},
-			});
+			);
 			await entered.promise;
 			controller.abort();
 			expect((await pending).type).toBe("failed");
@@ -346,8 +369,8 @@ describe("Antigravity OAuth", () => {
 			expect(result.refresh).toBe("original-refresh");
 			expect(Math.abs(result.expires - (Date.now() + 3600 * 1000))).toBeLessThan(5_000);
 
-			const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-			const body = new URLSearchParams(init.body as string);
+			const [, init] = defined(fetchSpy.mock.calls[0], "token refresh fetch call");
+			const body = requestForm(init, "token refresh request body");
 			expect(body.get("grant_type")).toBe("refresh_token");
 			expect(body.get("refresh_token")).toBe("original-refresh");
 			expect(body.get("client_id")).toBe(ANTIGRAVITY_CLIENT_ID);
