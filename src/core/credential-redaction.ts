@@ -2,6 +2,15 @@ const MARKER = "[credential]";
 type Credentials = string | readonly string[] | undefined;
 type ProjectIds = readonly string[] | undefined;
 
+type OwnPropertyField = { key: PropertyKey; descriptor: PropertyDescriptor };
+
+function getOwnPropertyFields(value: object): OwnPropertyField[] {
+	return Reflect.ownKeys(value).flatMap((key) => {
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		return descriptor ? [{ key, descriptor }] : [];
+	});
+}
+
 /** Use the same visible identifier shape as debug logs and request dumps. */
 export function maskSensitiveIdentifier(value: string | undefined | null): string {
 	if (typeof value !== "string" || value.length === 0) return "";
@@ -56,8 +65,7 @@ function scrub(
 	if (seen.has(value)) return "[Circular]";
 	seen.add(value);
 	const safe = Array.isArray(value) ? [] : Object.create(Object.getPrototypeOf(value));
-	for (const key of Reflect.ownKeys(value)) {
-		const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+	for (const { key, descriptor } of getOwnPropertyFields(value)) {
 		if (
 			key === "cause" &&
 			(!("value" in descriptor) || containsCredential(descriptor.value, credentials, projectIds))
@@ -87,12 +95,10 @@ function containsCredential(
 		return redactCredentialText(value, credentials, projectIds) !== value;
 	if (!value || typeof value !== "object" || seen.has(value)) return false;
 	seen.add(value);
-	return Reflect.ownKeys(value).some((key) => {
-		const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
-		return (
-			"value" in descriptor && containsCredential(descriptor.value, credentials, projectIds, seen)
-		);
-	});
+	return getOwnPropertyFields(value).some(
+		({ descriptor }) =>
+			"value" in descriptor && containsCredential(descriptor.value, credentials, projectIds, seen),
+	);
 }
 
 /** Keep writable transport errors and routing metadata; immutable errors need a safe replacement. */
@@ -103,12 +109,7 @@ export function redactCredentialError(
 ): Error {
 	const source = error instanceof Error || error instanceof DOMException ? error : undefined;
 	const message = redactCredentialText(source?.message ?? String(error), credentials, projectIds);
-	const fields = source
-		? Reflect.ownKeys(source).map((key) => ({
-				key,
-				descriptor: Object.getOwnPropertyDescriptor(source, key)!,
-			}))
-		: [];
+	const fields = source ? getOwnPropertyFields(source) : [];
 	const cause = fields.find(({ key }) => key === "cause")?.descriptor;
 	const secretCause =
 		cause && (!("value" in cause) || containsCredential(cause.value, credentials, projectIds));

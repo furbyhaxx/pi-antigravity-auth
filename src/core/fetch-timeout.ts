@@ -63,12 +63,14 @@ export async function fetchWithActiveTimeout(
 }
 
 function withBodyCleanup(response: Response, cleanup: () => void): Response {
-	const reader = response.body!.getReader();
+	const responseBody = response.body;
+	if (!responseBody) throw new Error("Cannot wrap a response without a body");
+	const reader = responseBody.getReader();
 	let finished = false;
 	let canceled = false;
 	let pulling = false;
 	let sourceClosed = false;
-	let bodyController!: ReadableStreamDefaultController<Uint8Array>;
+	let bodyController: ReadableStreamDefaultController<Uint8Array> | undefined;
 	const finish = () => {
 		if (finished) return;
 		finished = true;
@@ -115,18 +117,23 @@ function withBodyCleanup(response: Response, cleanup: () => void): Response {
 		// Do not read ahead: the caller controls consumption of the network body.
 		{ highWaterMark: 0 },
 	);
+	const controller = bodyController;
+	if (!controller) {
+		finish();
+		throw new Error("Response body controller was not initialized");
+	}
 	// Observe idle errors/empty EOF without reading ahead or dropping a final chunk.
 	void reader.closed.then(
 		() => {
 			sourceClosed = true;
 			if (finished || canceled || pulling) return;
 			finish();
-			bodyController.close();
+			controller.close();
 		},
 		(error) => {
 			if (finished || canceled) return;
 			finish();
-			bodyController.error(error);
+			controller.error(error);
 		},
 	);
 	try {

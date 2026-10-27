@@ -118,11 +118,12 @@ export class AgyRequestSessionStore {
 	}
 
 	beginRequest(key: string): AgyRequestScope {
-		const session = this.getOrCreate(key);
-		const stored = this.entries.get(key)!;
+		this.getOrCreate(key);
+		const stored = this.entries.get(key);
+		if (!stored) throw new Error(`Request session "${key}" was not stored after creation`);
 		const timestamp = Math.max(stored.lastAccessedAt, stored.lastRequestTimestamp + 1);
 		stored.lastRequestTimestamp = timestamp;
-		return { session, timestamp };
+		return { session: stored.context, timestamp };
 	}
 
 	completeExecution(key: string): void {

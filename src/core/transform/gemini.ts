@@ -203,8 +203,10 @@ function flattenClaudeUnion(
 		const type = typeName(branch);
 		return type === "object" ? 3 : type === "array" ? 2 : type === "null" ? 0 : 1;
 	};
-	let selected = branches[0]!;
-	for (const branch of branches.slice(1)) {
+	const [firstBranch, ...remainingBranches] = branches;
+	if (!firstBranch) return base;
+	let selected = firstBranch;
+	for (const branch of remainingBranches) {
 		if (score(branch) > score(selected)) selected = branch;
 	}
 	const result = { ...base, ...selected };
@@ -692,15 +694,15 @@ export function applyGeminiTransforms(
 	// Note: The old googleSearchRetrieval with dynamicRetrievalConfig is deprecated
 	// The new API doesn't support threshold - the model decides when to search automatically
 	if (googleSearch && googleSearch.mode === "auto") {
-		const tools = (payload["tools"] as unknown[]) || [];
-		if (!payload["tools"]) {
-			payload["tools"] = tools;
+		const existingTools = payload["tools"];
+		if (existingTools && !Array.isArray(existingTools)) {
+			throw new Error("Cannot add Google Search to a non-array tools payload");
 		}
+		const tools: unknown[] = Array.isArray(existingTools) ? existingTools : [];
 		// Add Google Search tool using new API format for Gemini 2.0+
 		// See: https://ai.google.dev/gemini-api/docs/grounding
-		(payload["tools"] as any[]).push({
-			googleSearch: {},
-		});
+		tools.push({ googleSearch: {} });
+		payload["tools"] = tools;
 	}
 
 	// 3. Normalize tools

@@ -457,7 +457,13 @@ const ANTIGRAVITY_OPENCODE_MODEL_IDS = [
 ] as const;
 
 function pickModelDefinitions(ids: readonly string[]): OpencodeModelDefinitions {
-	return Object.fromEntries(ids.map((id) => [id, ALL_MODEL_DEFINITIONS[id]!]));
+	const definitions: OpencodeModelDefinitions = {};
+	for (const id of ids) {
+		const definition = ALL_MODEL_DEFINITIONS[id];
+		if (!definition) throw new Error(`Missing OpenCode model definition for "${id}"`);
+		definitions[id] = definition;
+	}
+	return definitions;
 }
 
 export const OPENCODE_MODEL_DEFINITIONS = pickModelDefinitions(ANTIGRAVITY_OPENCODE_MODEL_IDS);
