@@ -14,6 +14,8 @@ import {
 } from "../../../src/core/transform/gemini.ts";
 import type { RequestPayload } from "../../../src/core/transform/types.ts";
 
+const conditionalThenKeyword = "then";
+
 describe("transform/gemini", () => {
 	describe("isGeminiModel", () => {
 		it("returns true for gemini-pro", () => {
@@ -1480,7 +1482,7 @@ describe("transform/gemini", () => {
 			const schema = {
 				type: "object",
 				if: { properties: { type: { const: "a" } } },
-				then: { properties: { a: { type: "string" } } },
+				[conditionalThenKeyword]: { properties: { a: { type: "string" } } },
 				else: { properties: { b: { type: "string" } } },
 				not: { type: "null" },
 			};
@@ -1558,7 +1560,7 @@ describe("transform/gemini", () => {
 				propertyNames: { minLength: 1 },
 				unevaluatedProperties: false,
 				if: { properties: { type: { const: "a" } } },
-				then: { required: ["a"] },
+				[conditionalThenKeyword]: { required: ["a"] },
 				else: { required: ["b"] },
 				not: { type: "null" },
 				dependentRequired: { foo: ["bar"] },

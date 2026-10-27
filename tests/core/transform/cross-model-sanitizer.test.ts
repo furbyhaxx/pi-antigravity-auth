@@ -8,6 +8,37 @@ import {
 	stripGeminiThinkingMetadata,
 } from "../../../src/core/transform/cross-model-sanitizer.ts";
 
+function defined<T>(value: T | undefined | null, what: string): T {
+	if (value == null) throw new Error(`missing ${what}`);
+	return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function record(value: unknown, what: string): Record<string, unknown> {
+	if (!isRecord(value)) throw new Error(`invalid ${what}: expected an object`);
+	return value;
+}
+
+function optionalRecord(value: unknown, what: string): Record<string, unknown> | undefined {
+	return value == null ? undefined : record(value, what);
+}
+
+function array(value: unknown, what: string): unknown[] {
+	if (!Array.isArray(value)) throw new Error(`invalid ${what}: expected an array`);
+	return value;
+}
+
+function item<T>(values: readonly T[], index: number, what: string): T {
+	return defined(values[index], what);
+}
+
+function records(value: unknown, what: string): Record<string, unknown>[] {
+	return array(value, what).map((entry, index) => record(entry, `${what}[${index}]`));
+}
+
 describe("cross-model-sanitizer", () => {
 	describe("getModelFamily", () => {
 		it("identifies Claude models", () => {
@@ -61,8 +92,8 @@ describe("cross-model-sanitizer", () => {
 				},
 			};
 			const result = stripGeminiThinkingMetadata(part);
-			const metadata = result.part["metadata"] as Record<string, unknown> | undefined;
-			const google = metadata?.["google"] as Record<string, unknown> | undefined;
+			const metadata = optionalRecord(result.part["metadata"], "metadata");
+			const google = optionalRecord(metadata?.["google"], "Google metadata");
 			expect(google?.["thoughtSignature"]).toBeUndefined();
 			expect(result.stripped).toBe(1);
 		});
@@ -79,9 +110,9 @@ describe("cross-model-sanitizer", () => {
 				},
 			};
 			const result = stripGeminiThinkingMetadata(part, true);
-			const metadata = result.part["metadata"] as Record<string, unknown> | undefined;
-			const google = metadata?.["google"] as Record<string, unknown> | undefined;
-			const cacheControl = metadata?.["cache_control"] as Record<string, unknown> | undefined;
+			const metadata = optionalRecord(result.part["metadata"], "metadata");
+			const google = optionalRecord(metadata?.["google"], "Google metadata");
+			const cacheControl = optionalRecord(metadata?.["cache_control"], "cache control metadata");
 			expect(google?.["thoughtSignature"]).toBeUndefined();
 			expect(google?.["groundingMetadata"]).toBe("preserved");
 			expect(cacheControl?.["type"]).toBe("ephemeral");
@@ -97,8 +128,8 @@ describe("cross-model-sanitizer", () => {
 				},
 			};
 			const result = stripGeminiThinkingMetadata(part, true);
-			const metadata = result.part["metadata"] as Record<string, unknown> | undefined;
-			const google = metadata?.["google"] as Record<string, unknown> | undefined;
+			const metadata = optionalRecord(result.part["metadata"], "metadata");
+			const google = optionalRecord(metadata?.["google"], "Google metadata");
 			expect(google).toBeUndefined();
 		});
 
@@ -199,11 +230,17 @@ describe("cross-model-sanitizer", () => {
 			};
 
 			const result = deepSanitizeCrossModelMetadata(payload, "claude");
-			const parts = (result.obj as any).contents[0].parts;
+			const sanitized = record(result.obj, "sanitized object");
+			const contents = records(sanitized["contents"], "contents");
+			const parts = records(item(contents, 0, "contents[0]")["parts"], "contents[0].parts");
+			const firstPart = item(parts, 0, "contents[0].parts[0]");
+			const secondPart = item(parts, 1, "contents[0].parts[1]");
+			const metadata = optionalRecord(secondPart["metadata"], "part metadata");
+			const googleMetadata = optionalRecord(metadata?.["google"], "Google metadata");
 
-			expect(parts[0].thoughtSignature).toBeUndefined();
-			expect(parts[1].metadata?.google?.thoughtSignature).toBeUndefined();
-			expect(parts[1].functionCall.name).toBe("bash");
+			expect(firstPart["thoughtSignature"]).toBeUndefined();
+			expect(googleMetadata?.["thoughtSignature"]).toBeUndefined();
+			expect(record(secondPart["functionCall"], "function call")["name"]).toBe("bash");
 			expect(result.stripped).toBe(2);
 		});
 
@@ -225,10 +262,12 @@ describe("cross-model-sanitizer", () => {
 			};
 
 			const result = deepSanitizeCrossModelMetadata(payload, "gemini");
-			const content = (result.obj as any).messages[0].content;
+			const sanitized = record(result.obj, "sanitized object");
+			const messages = records(sanitized["messages"], "messages");
+			const content = records(item(messages, 0, "messages[0]")["content"], "messages[0].content");
 
-			expect(content[0].signature).toBeUndefined();
-			expect(content[1].name).toBe("bash");
+			expect(item(content, 0, "messages[0].content[0]")["signature"]).toBeUndefined();
+			expect(item(content, 1, "messages[0].content[1]")["name"]).toBe("bash");
 			expect(result.stripped).toBe(1);
 		});
 
@@ -250,9 +289,17 @@ describe("cross-model-sanitizer", () => {
 			};
 
 			const result = deepSanitizeCrossModelMetadata(payload, "claude");
-			const content = (result.obj as any).extra_body.messages[0].content;
+			const sanitized = record(result.obj, "sanitized object");
+			const extraBody = record(sanitized["extra_body"], "extra body");
+			const messages = records(extraBody["messages"], "extra_body.messages");
+			const content = records(
+				item(messages, 0, "extra_body.messages[0]")["content"],
+				"extra_body.messages[0].content",
+			);
+			const metadata = optionalRecord(item(content, 0, "content[0]")["metadata"], "metadata");
+			const googleMetadata = optionalRecord(metadata?.["google"], "Google metadata");
 
-			expect(content[0].metadata?.google?.thoughtSignature).toBeUndefined();
+			expect(googleMetadata?.["thoughtSignature"]).toBeUndefined();
 			expect(result.stripped).toBe(1);
 		});
 
@@ -306,9 +353,15 @@ describe("cross-model-sanitizer", () => {
 
 			expect(result.modified).toBe(true);
 			expect(result.signaturesStripped).toBe(2);
-			const parts = (result.payload as any).contents[0].parts;
-			expect(parts[0].thoughtSignature).toBeUndefined();
-			expect(parts[1].metadata?.google?.thoughtSignature).toBeUndefined();
+			const sanitized = record(result.payload, "sanitized payload");
+			const contents = records(sanitized["contents"], "contents");
+			const parts = records(item(contents, 0, "contents[0]")["parts"], "contents[0].parts");
+			const firstPart = item(parts, 0, "contents[0].parts[0]");
+			const secondPart = item(parts, 1, "contents[0].parts[1]");
+			const metadata = optionalRecord(secondPart["metadata"], "part metadata");
+			const googleMetadata = optionalRecord(metadata?.["google"], "Google metadata");
+			expect(firstPart["thoughtSignature"]).toBeUndefined();
+			expect(googleMetadata?.["thoughtSignature"]).toBeUndefined();
 		});
 
 		it("strips Claude signatures when target is Gemini", () => {
@@ -350,7 +403,10 @@ describe("cross-model-sanitizer", () => {
 
 			expect(result.modified).toBe(false);
 			expect(result.signaturesStripped).toBe(0);
-			expect((result.payload as any).contents[0].parts[0].thoughtSignature).toBe("sig");
+			const sanitized = record(result.payload, "sanitized payload");
+			const contents = records(sanitized["contents"], "contents");
+			const parts = records(item(contents, 0, "contents[0]")["parts"], "contents[0].parts");
+			expect(item(parts, 0, "contents[0].parts[0]")["thoughtSignature"]).toBe("sig");
 		});
 
 		it("preserves functionCall structure", () => {
@@ -375,9 +431,16 @@ describe("cross-model-sanitizer", () => {
 				targetModel: "claude-opus-4-6-thinking-low",
 			});
 
-			const fc = (result.payload as any).contents[0].parts[0].functionCall;
-			expect(fc.name).toBe("Bash");
-			expect(fc.args.command).toBe("df -h");
+			const sanitized = record(result.payload, "sanitized payload");
+			const contents = records(sanitized["contents"], "contents");
+			const parts = records(item(contents, 0, "contents[0]")["parts"], "contents[0].parts");
+			const functionCall = record(
+				item(parts, 0, "contents[0].parts[0]")["functionCall"],
+				"function call",
+			);
+			const args = record(functionCall["args"], "function call arguments");
+			expect(functionCall["name"]).toBe("Bash");
+			expect(args["command"]).toBe("df -h");
 		});
 
 		it("preserves non-signature metadata when option is true", () => {
@@ -405,10 +468,15 @@ describe("cross-model-sanitizer", () => {
 				preserveNonSignatureMetadata: true,
 			});
 
-			const meta = (result.payload as any).contents[0].parts[0].metadata;
-			expect(meta.google.thoughtSignature).toBeUndefined();
-			expect(meta.google.groundingMetadata).toBe("keep-me");
-			expect(meta.cache_control.type).toBe("ephemeral");
+			const sanitized = record(result.payload, "sanitized payload");
+			const contents = records(sanitized["contents"], "contents");
+			const parts = records(item(contents, 0, "contents[0]")["parts"], "contents[0].parts");
+			const metadata = record(item(parts, 0, "contents[0].parts[0]")["metadata"], "metadata");
+			const googleMetadata = record(metadata["google"], "Google metadata");
+			const cacheControl = record(metadata["cache_control"], "cache control metadata");
+			expect(googleMetadata["thoughtSignature"]).toBeUndefined();
+			expect(googleMetadata["groundingMetadata"]).toBe("keep-me");
+			expect(cacheControl["type"]).toBe("ephemeral");
 		});
 	});
 
@@ -427,12 +495,14 @@ describe("cross-model-sanitizer", () => {
 				],
 			};
 
-			const stripped = sanitizeCrossModelPayloadInPlace(payload as Record<string, unknown>, {
+			const stripped = sanitizeCrossModelPayloadInPlace(payload, {
 				targetModel: "claude-opus-4-6-thinking-high",
 			});
 
 			expect(stripped).toBe(1);
-			expect((payload as any).contents[0].parts[0].thoughtSignature).toBeUndefined();
+			const firstContent = defined(payload.contents[0], "contents[0]");
+			const parts = defined(firstContent.parts[0], "contents[0].parts[0]");
+			expect(parts.thoughtSignature).toBeUndefined();
 		});
 
 		it("handles extra_body.messages", () => {
@@ -446,7 +516,7 @@ describe("cross-model-sanitizer", () => {
 				},
 			};
 
-			const stripped = sanitizeCrossModelPayloadInPlace(payload as Record<string, unknown>, {
+			const stripped = sanitizeCrossModelPayloadInPlace(payload, {
 				targetModel: "claude-sonnet-4",
 			});
 
@@ -518,17 +588,31 @@ describe("cross-model-sanitizer", () => {
 			expect(result.modified).toBe(true);
 			expect(result.signaturesStripped).toBe(2);
 
-			const modelParts = (result.payload as any).contents[1].parts;
-			expect(modelParts[0].thoughtSignature).toBeUndefined();
-			expect(modelParts[0].thought).toBe(true);
-			expect(modelParts[0].text).toContain("analyze disk usage");
+			const sanitized = record(result.payload, "sanitized payload");
+			const contents = records(sanitized["contents"], "contents");
+			const model = item(contents, 1, "contents[1]");
+			const modelParts = records(model["parts"], "contents[1].parts");
+			const thinkingPart = item(modelParts, 0, "contents[1].parts[0]");
+			const toolPart = item(modelParts, 1, "contents[1].parts[1]");
+			const metadata = optionalRecord(toolPart["metadata"], "tool metadata");
+			const googleMetadata = optionalRecord(metadata?.["google"], "Google metadata");
+			const functionCall = record(toolPart["functionCall"], "function call");
+			const args = record(functionCall["args"], "function call arguments");
+			expect(thinkingPart["thoughtSignature"]).toBeUndefined();
+			expect(thinkingPart["thought"]).toBe(true);
+			expect(thinkingPart["text"]).toContain("analyze disk usage");
 
-			expect(modelParts[1].metadata?.google?.thoughtSignature).toBeUndefined();
-			expect(modelParts[1].functionCall.name).toBe("Bash");
-			expect(modelParts[1].functionCall.args.command).toBe("df -h");
+			expect(googleMetadata?.["thoughtSignature"]).toBeUndefined();
+			expect(functionCall["name"]).toBe("Bash");
+			expect(args["command"]).toBe("df -h");
 
-			const functionResponse = (result.payload as any).contents[2].parts[0].functionResponse;
-			expect(functionResponse.name).toBe("Bash");
+			const functionContent = item(contents, 2, "contents[2]");
+			const functionParts = records(functionContent["parts"], "contents[2].parts");
+			const functionResponse = record(
+				item(functionParts, 0, "contents[2].parts[0]")["functionResponse"],
+				"function response",
+			);
+			expect(functionResponse["name"]).toBe("Bash");
 		});
 
 		it("handles Claude thinking + tool use -> Gemini tool call scenario", () => {
@@ -574,10 +658,15 @@ describe("cross-model-sanitizer", () => {
 			expect(result.modified).toBe(true);
 			expect(result.signaturesStripped).toBe(1);
 
-			const assistantContent = (result.payload as any).messages[1].content;
-			expect(assistantContent[0].signature).toBeUndefined();
-			expect(assistantContent[0].thinking).toContain("list the files");
-			expect(assistantContent[1].name).toBe("bash");
+			const sanitized = record(result.payload, "sanitized payload");
+			const messages = records(sanitized["messages"], "messages");
+			const assistant = item(messages, 1, "messages[1]");
+			const assistantContent = records(assistant["content"], "messages[1].content");
+			const thinkingBlock = item(assistantContent, 0, "messages[1].content[0]");
+			const toolUse = item(assistantContent, 1, "messages[1].content[1]");
+			expect(thinkingBlock["signature"]).toBeUndefined();
+			expect(thinkingBlock["thinking"]).toContain("list the files");
+			expect(toolUse["name"]).toBe("bash");
 		});
 	});
 });

@@ -14,6 +14,62 @@ import {
 } from "../../../src/core/transform/claude.ts";
 import type { RequestPayload } from "../../../src/core/transform/types.ts";
 
+type JsonObject = Record<string, unknown>;
+
+function defined<T>(value: T | undefined | null, what: string): T {
+	if (value == null) throw new Error(`missing ${what}`);
+	return value;
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function record(value: unknown, what: string): JsonObject {
+	if (!isJsonObject(value)) throw new Error(`invalid ${what}: expected an object`);
+	return value;
+}
+
+function optionalRecord(value: unknown, what: string): JsonObject | undefined {
+	return value == null ? undefined : record(value, what);
+}
+
+function array(value: unknown, what: string): unknown[] {
+	if (!Array.isArray(value)) throw new Error(`invalid ${what}: expected an array`);
+	return value;
+}
+
+function item<T>(values: readonly T[], index: number, what: string): T {
+	return defined(values[index], what);
+}
+
+function records(value: unknown, what: string): JsonObject[] {
+	return array(value, what).map((entry, index) => record(entry, `${what}[${index}]`));
+}
+
+function systemParts(payload: RequestPayload): JsonObject[] {
+	const systemInstruction = record(payload["systemInstruction"], "system instruction");
+	return records(systemInstruction["parts"], "system instruction parts");
+}
+
+function normalizedTools(payload: RequestPayload): JsonObject[] {
+	return records(payload["tools"], "normalized tools");
+}
+
+function functionDeclarations(tool: JsonObject): JsonObject[] {
+	return records(tool["functionDeclarations"], "function declarations");
+}
+
+function firstFunctionDeclaration(payload: RequestPayload): JsonObject {
+	const tools = normalizedTools(payload);
+	const declarations = functionDeclarations(item(tools, 0, "tools[0]"));
+	return item(declarations, 0, "functionDeclarations[0]");
+}
+
+function functionParameters(payload: RequestPayload): JsonObject {
+	return record(firstFunctionDeclaration(payload)["parameters"], "tool parameters");
+}
+
 describe("isClaudeModel", () => {
 	it("returns true for claude model names", () => {
 		expect(isClaudeModel("claude-sonnet-4-5")).toBe(true);
@@ -88,8 +144,13 @@ describe("configureClaudeToolConfig", () => {
 		configureClaudeToolConfig(payload);
 
 		expect(payload["toolConfig"]).toBeDefined();
-		expect((payload["toolConfig"] as any).functionCallingConfig).toBeDefined();
-		expect((payload["toolConfig"] as any).functionCallingConfig.mode).toBe("VALIDATED");
+		const toolConfig = record(payload["toolConfig"], "tool config");
+		expect(toolConfig["functionCallingConfig"]).toBeDefined();
+		const functionCallingConfig = record(
+			toolConfig["functionCallingConfig"],
+			"function calling config",
+		);
+		expect(functionCallingConfig["mode"]).toBe("VALIDATED");
 	});
 
 	it("adds functionCallingConfig to existing toolConfig", () => {
@@ -98,8 +159,11 @@ describe("configureClaudeToolConfig", () => {
 		};
 		configureClaudeToolConfig(payload);
 
-		expect((payload["toolConfig"] as any).someOtherConfig).toBe(true);
-		expect((payload["toolConfig"] as any).functionCallingConfig.mode).toBe("VALIDATED");
+		const toolConfig = record(payload["toolConfig"], "tool config");
+		expect(toolConfig["someOtherConfig"]).toBe(true);
+		expect(record(toolConfig["functionCallingConfig"], "function calling config")["mode"]).toBe(
+			"VALIDATED",
+		);
 	});
 
 	it("sets mode to VALIDATED on existing functionCallingConfig", () => {
@@ -110,8 +174,13 @@ describe("configureClaudeToolConfig", () => {
 		};
 		configureClaudeToolConfig(payload);
 
-		expect((payload["toolConfig"] as any).functionCallingConfig.existingKey).toBe("value");
-		expect((payload["toolConfig"] as any).functionCallingConfig.mode).toBe("VALIDATED");
+		const toolConfig = record(payload["toolConfig"], "tool config");
+		const functionCallingConfig = record(
+			toolConfig["functionCallingConfig"],
+			"function calling config",
+		);
+		expect(functionCallingConfig["existingKey"]).toBe("value");
+		expect(functionCallingConfig["mode"]).toBe("VALIDATED");
 	});
 
 	it("overwrites existing mode", () => {
@@ -122,7 +191,10 @@ describe("configureClaudeToolConfig", () => {
 		};
 		configureClaudeToolConfig(payload);
 
-		expect((payload["toolConfig"] as any).functionCallingConfig.mode).toBe("VALIDATED");
+		const toolConfig = record(payload["toolConfig"], "tool config");
+		expect(record(toolConfig["functionCallingConfig"], "function calling config")["mode"]).toBe(
+			"VALIDATED",
+		);
 	});
 
 	it("handles null toolConfig gracefully", () => {
@@ -291,10 +363,10 @@ describe("appendClaudeThinkingHint", () => {
 			};
 			appendClaudeThinkingHint(payload);
 
-			const sys = payload["systemInstruction"] as any;
-			expect(sys.parts[0].text).toBe("First part.");
-			expect(sys.parts[1].text).toBe("Last part.");
-			expect(sys.parts[2].text).toBe(CLAUDE_INTERLEAVED_THINKING_HINT);
+			const parts = systemParts(payload);
+			expect(item(parts, 0, "system parts[0]")["text"]).toBe("First part.");
+			expect(item(parts, 1, "system parts[1]")["text"]).toBe("Last part.");
+			expect(item(parts, 2, "system parts[2]")["text"]).toBe(CLAUDE_INTERLEAVED_THINKING_HINT);
 		});
 
 		it("preserves single text part and appends hint as separate part", () => {
@@ -305,9 +377,9 @@ describe("appendClaudeThinkingHint", () => {
 			};
 			appendClaudeThinkingHint(payload);
 
-			const sys = payload["systemInstruction"] as any;
-			expect(sys.parts[0].text).toBe("Only part.");
-			expect(sys.parts[1].text).toBe(CLAUDE_INTERLEAVED_THINKING_HINT);
+			const parts = systemParts(payload);
+			expect(item(parts, 0, "system parts[0]")["text"]).toBe("Only part.");
+			expect(item(parts, 1, "system parts[1]")["text"]).toBe(CLAUDE_INTERLEAVED_THINKING_HINT);
 		});
 
 		it("creates new text part when no text parts exist", () => {
@@ -318,9 +390,9 @@ describe("appendClaudeThinkingHint", () => {
 			};
 			appendClaudeThinkingHint(payload);
 
-			const sys = payload["systemInstruction"] as any;
-			expect(sys.parts).toHaveLength(2);
-			expect(sys.parts[1].text).toBe(CLAUDE_INTERLEAVED_THINKING_HINT);
+			const parts = systemParts(payload);
+			expect(parts).toHaveLength(2);
+			expect(item(parts, 1, "system parts[1]")["text"]).toBe(CLAUDE_INTERLEAVED_THINKING_HINT);
 		});
 
 		it("creates parts array when not present", () => {
@@ -329,8 +401,8 @@ describe("appendClaudeThinkingHint", () => {
 			};
 			appendClaudeThinkingHint(payload);
 
-			const sys = payload["systemInstruction"] as any;
-			expect(sys.parts).toEqual([{ text: CLAUDE_INTERLEAVED_THINKING_HINT }]);
+			const systemInstruction = record(payload["systemInstruction"], "system instruction");
+			expect(systemInstruction["parts"]).toEqual([{ text: CLAUDE_INTERLEAVED_THINKING_HINT }]);
 		});
 	});
 
@@ -364,10 +436,10 @@ describe("appendClaudeThinkingHint", () => {
 			appendClaudeThinkingHint(payload);
 			appendClaudeThinkingHint(payload);
 
-			const sys = payload["systemInstruction"] as any;
-			const hintParts = sys.parts.filter((p: any) => p.text === CLAUDE_INTERLEAVED_THINKING_HINT);
+			const parts = systemParts(payload);
+			const hintParts = parts.filter((part) => part["text"] === CLAUDE_INTERLEAVED_THINKING_HINT);
 			expect(hintParts).toHaveLength(1);
-			expect(sys.parts).toHaveLength(2);
+			expect(parts).toHaveLength(2);
 		});
 
 		it("does not duplicate hint when called twice on string systemInstruction", () => {
@@ -377,8 +449,8 @@ describe("appendClaudeThinkingHint", () => {
 			appendClaudeThinkingHint(payload);
 			appendClaudeThinkingHint(payload);
 
-			const sys = payload["systemInstruction"] as any;
-			const hintParts = sys.parts.filter((p: any) => p.text === CLAUDE_INTERLEAVED_THINKING_HINT);
+			const parts = systemParts(payload);
+			const hintParts = parts.filter((part) => part["text"] === CLAUDE_INTERLEAVED_THINKING_HINT);
 			expect(hintParts).toHaveLength(1);
 		});
 
@@ -389,19 +461,19 @@ describe("appendClaudeThinkingHint", () => {
 			appendClaudeThinkingHint(payload);
 			appendClaudeThinkingHint(payload);
 
-			const sys = payload["systemInstruction"] as any;
-			const hintParts = sys.parts.filter((p: any) => p.text === CLAUDE_INTERLEAVED_THINKING_HINT);
+			const parts = systemParts(payload);
+			const hintParts = parts.filter((part) => part["text"] === CLAUDE_INTERLEAVED_THINKING_HINT);
 			expect(hintParts).toHaveLength(1);
 		});
 	});
 });
 
 describe("normalizeClaudeTools", () => {
-	const identityClean = (schema: unknown) => schema as Record<string, unknown>;
+	const identityClean = (schema: unknown) => record(schema, "JSON schema");
 
 	const realClean = (schema: unknown): Record<string, unknown> => {
 		if (!schema || typeof schema !== "object") return {};
-		const cleaned = { ...(schema as Record<string, unknown>) };
+		const cleaned = { ...record(schema, "JSON schema") };
 		delete cleaned["$schema"];
 		delete cleaned["$id"];
 		return cleaned;
@@ -452,10 +524,11 @@ describe("normalizeClaudeTools", () => {
 				"decl=get_weather,src=functionDeclarations,hasSchema=y",
 			);
 
-			const tools = payload["tools"] as any[];
+			const tools = normalizedTools(payload);
 			expect(tools).toHaveLength(1);
-			expect(tools[0].functionDeclarations).toHaveLength(1);
-			expect(tools[0].functionDeclarations[0].name).toBe("get_weather");
+			const declarations = functionDeclarations(item(tools, 0, "tools[0]"));
+			expect(declarations).toHaveLength(1);
+			expect(item(declarations, 0, "functionDeclarations[0]")["name"]).toBe("get_weather");
 		});
 
 		it("handles multiple functionDeclarations", () => {
@@ -472,8 +545,9 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, identityClean);
 
-			const tools = payload["tools"] as any[];
-			expect(tools[0].functionDeclarations).toHaveLength(2);
+			const tools = normalizedTools(payload);
+			const declarations = functionDeclarations(item(tools, 0, "tools[0]"));
+			expect(declarations).toHaveLength(2);
 		});
 	});
 
@@ -501,8 +575,7 @@ describe("normalizeClaudeTools", () => {
 
 			expect(result.toolDebugSummaries).toContain("decl=search,src=function/custom,hasSchema=y");
 
-			const tools = payload["tools"] as any[];
-			expect(tools[0].functionDeclarations[0].name).toBe("search");
+			expect(firstFunctionDeclaration(payload)["name"]).toBe("search");
 		});
 
 		it("normalizes custom-style tools", () => {
@@ -544,8 +617,7 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, identityClean);
 
-			const tools = payload["tools"] as any[];
-			expect(tools[0].functionDeclarations[0].name).toBe("direct_tool");
+			expect(firstFunctionDeclaration(payload)["name"]).toBe("direct_tool");
 		});
 	});
 
@@ -566,11 +638,10 @@ describe("normalizeClaudeTools", () => {
 
 			expect(result.toolDebugMissing).toBe(1);
 
-			const tools = payload["tools"] as any[];
-			const params = tools[0].functionDeclarations[0].parameters;
-			expect(params.type).toBe("object");
-			expect(params.properties._placeholder).toBeDefined();
-			expect(params.required).toContain("_placeholder");
+			const params = functionParameters(payload);
+			expect(params["type"]).toBe("object");
+			expect(record(params["properties"], "parameter properties")["_placeholder"]).toBeDefined();
+			expect(array(params["required"], "required parameters")).toContain("_placeholder");
 		});
 
 		it("adds placeholder when schema has no properties", () => {
@@ -587,9 +658,8 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, identityClean);
 
-			const tools = payload["tools"] as any[];
-			const params = tools[0].functionDeclarations[0].parameters;
-			expect(params.properties._placeholder).toBeDefined();
+			const params = functionParameters(payload);
+			expect(record(params["properties"], "parameter properties")["_placeholder"]).toBeDefined();
 		});
 
 		it("preserves existing properties", () => {
@@ -611,10 +681,10 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, identityClean);
 
-			const tools = payload["tools"] as any[];
-			const params = tools[0].functionDeclarations[0].parameters;
-			expect(params.properties.existingProp).toBeDefined();
-			expect(params.properties._placeholder).toBeUndefined();
+			const params = functionParameters(payload);
+			const properties = record(params["properties"], "parameter properties");
+			expect(properties["existingProp"]).toBeDefined();
+			expect(properties["_placeholder"]).toBeUndefined();
 		});
 
 		it("cleans schema using provided function", () => {
@@ -635,10 +705,9 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, realClean);
 
-			const tools = payload["tools"] as any[];
-			const params = tools[0].functionDeclarations[0].parameters;
-			expect(params.$schema).toBeUndefined();
-			expect(params.properties.arg).toBeDefined();
+			const params = functionParameters(payload);
+			expect(params["$schema"]).toBeUndefined();
+			expect(record(params["properties"], "parameter properties")["arg"]).toBeDefined();
 		});
 	});
 
@@ -660,8 +729,7 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, identityClean);
 
-			const tools = payload["tools"] as any[];
-			expect(tools[0].functionDeclarations[0].name).toBe("tool_with_special_chars_");
+			expect(firstFunctionDeclaration(payload)["name"]).toBe("tool_with_special_chars_");
 		});
 
 		it("truncates long tool names to 64 characters", () => {
@@ -682,8 +750,7 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, identityClean);
 
-			const tools = payload["tools"] as any[];
-			expect(tools[0].functionDeclarations[0].name).toHaveLength(64);
+			expect(firstFunctionDeclaration(payload)["name"]).toHaveLength(64);
 		});
 
 		it("generates name when missing", () => {
@@ -703,8 +770,7 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, identityClean);
 
-			const tools = payload["tools"] as any[];
-			expect(tools[0].functionDeclarations[0].name).toBe("tool-0");
+			expect(firstFunctionDeclaration(payload)["name"]).toBe("tool-0");
 		});
 	});
 
@@ -727,16 +793,16 @@ describe("normalizeClaudeTools", () => {
 
 			normalizeClaudeTools(payload, identityClean);
 
-			const tools = payload["tools"] as any[];
+			const tools = normalizedTools(payload);
 			expect(tools).toHaveLength(2);
-			expect(tools[0].functionDeclarations).toBeDefined();
-			expect(tools[1].codeExecution).toBeDefined();
+			expect(item(tools, 0, "tools[0]")["functionDeclarations"]).toBeDefined();
+			expect(item(tools, 1, "tools[1]")["codeExecution"]).toBeDefined();
 		});
 	});
 });
 
 describe("applyClaudeTransforms", () => {
-	const mockCleanJSONSchema = (schema: unknown) => schema as Record<string, unknown>;
+	const mockCleanJSONSchema = (schema: unknown) => record(schema, "JSON schema");
 
 	it("applies tool config for all Claude models", () => {
 		const payload: RequestPayload = {};
@@ -746,7 +812,10 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		expect((payload["toolConfig"] as any)?.functionCallingConfig?.mode).toBe("VALIDATED");
+		const toolConfig = record(payload["toolConfig"], "tool config");
+		expect(record(toolConfig["functionCallingConfig"], "function calling config")["mode"]).toBe(
+			"VALIDATED",
+		);
 	});
 
 	it("applies thinking config for thinking models", () => {
@@ -758,9 +827,10 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		const genConfig = payload["generationConfig"] as any;
-		expect(genConfig.thinkingConfig.include_thoughts).toBe(true);
-		expect(genConfig.thinkingConfig.thinking_budget).toBe(8192);
+		const genConfig = record(payload["generationConfig"], "generation config");
+		const thinkingConfig = record(genConfig["thinkingConfig"], "thinking config");
+		expect(thinkingConfig["include_thoughts"]).toBe(true);
+		expect(thinkingConfig["thinking_budget"]).toBe(8192);
 	});
 
 	it("uses tierThinkingBudget over normalizedThinking.thinkingBudget", () => {
@@ -773,8 +843,9 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		const genConfig = payload["generationConfig"] as any;
-		expect(genConfig.thinkingConfig.thinking_budget).toBe(32768);
+		const genConfig = record(payload["generationConfig"], "generation config");
+		const thinkingConfig = record(genConfig["thinkingConfig"], "thinking config");
+		expect(thinkingConfig["thinking_budget"]).toBe(32768);
 	});
 
 	it("ensures maxOutputTokens for thinking models with budget", () => {
@@ -788,8 +859,8 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		const genConfig = payload["generationConfig"] as any;
-		expect(genConfig.maxOutputTokens).toBe(computeClaudeMaxOutputTokens(8192));
+		const genConfig = record(payload["generationConfig"], "generation config");
+		expect(genConfig["maxOutputTokens"]).toBe(computeClaudeMaxOutputTokens(8192));
 	});
 
 	it("does not apply thinking config for non-thinking models", () => {
@@ -801,8 +872,8 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		const genConfig = payload["generationConfig"] as any;
-		expect(genConfig?.thinkingConfig).toBeUndefined();
+		const genConfig = optionalRecord(payload["generationConfig"], "generation config");
+		expect(genConfig?.["thinkingConfig"]).toBeUndefined();
 	});
 
 	it("appends thinking hint for thinking models with tools", () => {
@@ -826,8 +897,8 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		const sys = payload["systemInstruction"] as { parts: Array<{ text?: string }> };
-		expect(sys.parts.map((part) => part.text)).toContain(CLAUDE_INTERLEAVED_THINKING_HINT);
+		const parts = systemParts(payload);
+		expect(parts.map((part) => part["text"])).toContain(CLAUDE_INTERLEAVED_THINKING_HINT);
 	});
 
 	it("does not append thinking hint for thinking models without tools", () => {
@@ -840,7 +911,7 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		expect(payload["systemInstruction"] as string).not.toContain(CLAUDE_INTERLEAVED_THINKING_HINT);
+		expect(payload["systemInstruction"]).not.toContain(CLAUDE_INTERLEAVED_THINKING_HINT);
 	});
 
 	it("does not append thinking hint for non-thinking models with tools", () => {
@@ -864,7 +935,7 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		expect(payload["systemInstruction"] as string).not.toContain(CLAUDE_INTERLEAVED_THINKING_HINT);
+		expect(payload["systemInstruction"]).not.toContain(CLAUDE_INTERLEAVED_THINKING_HINT);
 	});
 
 	it("normalizes tools and returns debug info", () => {
@@ -891,9 +962,9 @@ describe("applyClaudeTransforms", () => {
 			cleanJSONSchema: mockCleanJSONSchema,
 		});
 
-		const genConfig = payload["generationConfig"] as any;
-		expect(genConfig.stopSequences).toEqual(["END"]);
-		expect(genConfig.stop_sequences).toBeUndefined();
+		const genConfig = record(payload["generationConfig"], "generation config");
+		expect(genConfig["stopSequences"]).toEqual(["END"]);
+		expect(genConfig["stop_sequences"]).toBeUndefined();
 	});
 });
 

@@ -5,6 +5,11 @@ import sonnet from "../../fixtures/agy-cli-1.3.3/native-sonnet-low.json";
 import schemaDerived from "../../fixtures/agy-cli-1.3.3/schema-derived-thinking.json";
 import argon from "../../fixtures/agy-cli-1.3.5/native-argon-low.json";
 
+function defined<T>(value: T | undefined | null, what: string): T {
+	if (value == null) throw new Error(`missing ${what}`);
+	return value;
+}
+
 describe("native AGY generation defaults", () => {
 	it("uses Argon levels without a budget for every variant and preserves output caps", () => {
 		for (const effort of ["low", "medium", "high"]) {
@@ -27,7 +32,8 @@ describe("native AGY generation defaults", () => {
 		}
 		const captured: Record<string, unknown> = {};
 		applyAgyNativeGenerationConfig("gemini-4-argon-low", captured);
-		expect(captured).toEqual(argon.requests[0]!.native_generation_config);
+		const argonRequest = defined(argon.requests[0], "Argon request fixture");
+		expect(captured).toEqual(argonRequest.native_generation_config);
 	});
 	it("matches both captured Claude low configurations exactly", () => {
 		for (const fixture of [opus, sonnet]) {
