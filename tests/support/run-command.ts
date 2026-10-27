@@ -82,8 +82,8 @@ async function spawnCollect(
       )
     : undefined
   const child = Bun.spawn([...argv], {
-    cwd: options.cwd,
-    env,
+    ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+    ...(env === undefined ? {} : { env }),
     stdin:
       options.stdin === undefined
         ? 'ignore'

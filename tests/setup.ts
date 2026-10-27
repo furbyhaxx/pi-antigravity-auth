@@ -25,34 +25,13 @@ process.env['USERPROFILE'] = home
 process.env['XDG_CONFIG_HOME'] = config
 process.env['XDG_CACHE_HOME'] = cache
 process.env['XDG_DATA_HOME'] = data
-// XDG_STATE_HOME must be pinned before sidebar-state.ts and rpc-dir.ts import,
-// because xdg-basedir reads state from env once at module load, and both
-// resolvers fall back to <XDG_STATE_HOME|~/.local/state> when their env
-// override is unset. Without this pin, any test that deletes the per-test
-// override drops resolution to the operator's real ~/.local/state dir.
 process.env['XDG_STATE_HOME'] = state
 process.env['APPDATA'] = config
 process.env['LOCALAPPDATA'] = cache
-process.env['OPENCODE_CONFIG_DIR'] = join(config, 'opencode')
 process.env['PI_AGENT_DIR'] = pi
 // Pi's native credential reader uses its own directory override.
 process.env['PI_CODING_AGENT_DIR'] = pi
 process.env['PI_ANTIGRAVITY_AUTH_FILE'] = join(pi, 'antigravity-accounts.json')
-process.env['OPENCODE_ANTIGRAVITY_GEMINI_DUMP_DIR'] = join(root, 'gemini-dumps')
-// Pin the two state-dir overrides so tests that reset them restore to an
-// in-root path rather than dropping to the real default.
-process.env['ANTIGRAVITY_AUTH_SIDEBAR_STATE_FILE'] = join(
-  state,
-  'cortexkit',
-  'antigravity-auth',
-  'sidebar-state.json',
-)
-process.env['ANTIGRAVITY_AUTH_RPC_DIR'] = join(
-  state,
-  'cortexkit',
-  'antigravity-auth',
-  'rpc',
-)
 
 const stubbedGlobals = new Map<string, unknown>()
 const dateNowSpyState: { active: boolean } = { active: false }
@@ -127,7 +106,7 @@ jest.useRealTimers = (() => {
 // in a test that forgets to clean up after itself does not leak into
 // subsequent test files — bun runs all `--isolate` files in one
 // process, and leftover fake timers would block the event loop from
-// exiting cleanly between the lock renewal / RPC server tests.
+// exiting cleanly between test files.
 afterEach(() => {
   jest.useRealTimers()
 })
