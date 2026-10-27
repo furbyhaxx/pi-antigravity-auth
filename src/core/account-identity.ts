@@ -11,14 +11,14 @@
  * would let a lookup about one account land on another.
  */
 
-import type { RowRef } from './account-repository-types.ts'
+import type { RowRef } from "./account-repository-types.ts";
 
 /** What a pool-store row carries about its own credential. */
 export interface RowAttributionSource {
-  readonly id: string
-  /** Undefined for a row with no per-row entry yet, which counts as epoch 1. */
-  readonly credentialEpoch?: number
-  readonly identity?: string
+	readonly id: string;
+	/** Undefined for a row with no per-row entry yet, which counts as epoch 1. */
+	readonly credentialEpoch?: number;
+	readonly identity?: string;
 }
 
 /**
@@ -26,8 +26,8 @@ export interface RowAttributionSource {
  * `Attribution` in common-auth `dist/store/attribution.d.ts`.
  */
 export interface CredentialFence {
-  credentialEpoch: number
-  identity?: string
+	credentialEpoch: number;
+	identity?: string;
 }
 
 /**
@@ -35,31 +35,27 @@ export interface CredentialFence {
  * at epoch 1, as the store itself counts it.
  */
 export function rowRefOf(row: RowAttributionSource): RowRef {
-  const credentialEpoch = row.credentialEpoch ?? 1
-  return row.identity === undefined
-    ? { id: row.id, credentialEpoch }
-    : { id: row.id, credentialEpoch, identity: row.identity }
+	const credentialEpoch = row.credentialEpoch ?? 1;
+	return row.identity === undefined
+		? { id: row.id, credentialEpoch }
+		: { id: row.id, credentialEpoch, identity: row.identity };
 }
 
 /** Exact equality: id, epoch, and identity including its absence. */
 export function sameRowRef(a: RowRef, b: RowRef): boolean {
-  return (
-    a.id === b.id &&
-    a.credentialEpoch === b.credentialEpoch &&
-    a.identity === b.identity
-  )
+	return a.id === b.id && a.credentialEpoch === b.credentialEpoch && a.identity === b.identity;
 }
 
 /** Whether a loaded row still holds exactly the credential `ref` names. */
 export function rowHoldsRef(row: RowAttributionSource, ref: RowRef): boolean {
-  return sameRowRef(rowRefOf(row), ref)
+	return sameRowRef(rowRefOf(row), ref);
 }
 
 /** The store's attribution argument for the credential in `ref`. */
 export function credentialFenceOf(ref: RowRef): CredentialFence {
-  return ref.identity === undefined
-    ? { credentialEpoch: ref.credentialEpoch }
-    : { credentialEpoch: ref.credentialEpoch, identity: ref.identity }
+	return ref.identity === undefined
+		? { credentialEpoch: ref.credentialEpoch }
+		: { credentialEpoch: ref.credentialEpoch, identity: ref.identity };
 }
 
 /**
@@ -69,11 +65,11 @@ export function credentialFenceOf(ref: RowRef): CredentialFence {
  * parts apart whatever characters an id or identity holds.
  */
 export function rowRefKey(ref: RowRef): string {
-  return JSON.stringify(
-    ref.identity === undefined
-      ? [ref.id, ref.credentialEpoch]
-      : [ref.id, ref.credentialEpoch, ref.identity],
-  )
+	return JSON.stringify(
+		ref.identity === undefined
+			? [ref.id, ref.credentialEpoch]
+			: [ref.id, ref.credentialEpoch, ref.identity],
+	);
 }
 
 /**
@@ -81,16 +77,16 @@ export function rowRefKey(ref: RowRef): string {
  * itself (identities are account ids and stay out of messages).
  */
 export function refMismatchReason(
-  row: RowAttributionSource | undefined,
-  ref: RowRef,
+	row: RowAttributionSource | undefined,
+	ref: RowRef,
 ): string | undefined {
-  if (row === undefined) return `row ${ref.id} is no longer in the pool`
-  const current = rowRefOf(row)
-  if (current.credentialEpoch !== ref.credentialEpoch) {
-    return `row ${ref.id} now holds credential epoch ${current.credentialEpoch}, not ${ref.credentialEpoch}`
-  }
-  if (current.identity !== ref.identity) {
-    return `row ${ref.id} now records a different account identity`
-  }
-  return undefined
+	if (row === undefined) return `row ${ref.id} is no longer in the pool`;
+	const current = rowRefOf(row);
+	if (current.credentialEpoch !== ref.credentialEpoch) {
+		return `row ${ref.id} now holds credential epoch ${current.credentialEpoch}, not ${ref.credentialEpoch}`;
+	}
+	if (current.identity !== ref.identity) {
+		return `row ${ref.id} now records a different account identity`;
+	}
+	return undefined;
 }

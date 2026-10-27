@@ -1,16 +1,10 @@
 {
 	"compilerOptions": {
 		"target": "ESNext",
-		"lib": [
-			"ESNext",
-			"DOM",
-			"DOM.Iterable"
-		],
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
 		"module": "preserve",
 		"moduleResolution": "bundler",
-		"types": [
-			"bun"
-		],
+		"types": ["bun"],
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
 		"exactOptionalPropertyTypes": true,
@@ -32,8 +26,5 @@
 		"forceConsistentCasingInFileNames": true,
 		"noEmit": true
 	},
-	"include": [
-		"src/**/*.ts",
-		"tests/**/*.ts"
-	]
+	"include": ["src/**/*.ts", "tests/**/*.ts"]
 }

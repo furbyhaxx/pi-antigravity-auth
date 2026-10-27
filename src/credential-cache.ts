@@ -9,24 +9,21 @@
  * avoid a redundant loadCodeAssist round-trip on every turn.
  */
 
-const packedRefreshByAccessToken = new Map<string, string>()
+const packedRefreshByAccessToken = new Map<string, string>();
 // Single-account extension: keep the map tiny.
-const MAX_ENTRIES = 4
+const MAX_ENTRIES = 4;
 
-export function rememberPackedRefresh(
-  accessToken: string,
-  packedRefresh: string,
-): void {
-  if (!accessToken) return
-  if (packedRefreshByAccessToken.has(accessToken)) {
-    packedRefreshByAccessToken.delete(accessToken)
-  } else if (packedRefreshByAccessToken.size >= MAX_ENTRIES) {
-    const oldest = packedRefreshByAccessToken.keys().next().value
-    if (oldest !== undefined) packedRefreshByAccessToken.delete(oldest)
-  }
-  packedRefreshByAccessToken.set(accessToken, packedRefresh)
+export function rememberPackedRefresh(accessToken: string, packedRefresh: string): void {
+	if (!accessToken) return;
+	if (packedRefreshByAccessToken.has(accessToken)) {
+		packedRefreshByAccessToken.delete(accessToken);
+	} else if (packedRefreshByAccessToken.size >= MAX_ENTRIES) {
+		const oldest = packedRefreshByAccessToken.keys().next().value;
+		if (oldest !== undefined) packedRefreshByAccessToken.delete(oldest);
+	}
+	packedRefreshByAccessToken.set(accessToken, packedRefresh);
 }
 
 export function getPackedRefresh(accessToken: string): string | undefined {
-  return packedRefreshByAccessToken.get(accessToken)
+	return packedRefreshByAccessToken.get(accessToken);
 }

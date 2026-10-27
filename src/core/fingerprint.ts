@@ -7,114 +7,106 @@
  * retained for account history, but content requests only send User-Agent.
  */
 
-import * as crypto from 'node:crypto'
+import * as crypto from "node:crypto";
 
-export const AGY_CLI_VERSION = '1.3.5'
-export const AGY_CLI_CHANGE_LIST = '998863838'
-const ANTIGRAVITY_API_CLIENT = 'antigravity-cli'
+export const AGY_CLI_VERSION = "1.3.5";
+export const AGY_CLI_CHANGE_LIST = "998863838";
+const ANTIGRAVITY_API_CLIENT = "antigravity-cli";
 
 export interface ClientMetadata {
-  ideType: string
-  platform: string
-  pluginType: string
+	ideType: string;
+	platform: string;
+	pluginType: string;
 }
 
 export interface Fingerprint {
-  deviceId: string
-  sessionToken: string
-  userAgent: string
-  apiClient: string
-  clientMetadata: ClientMetadata
-  createdAt: number
+	deviceId: string;
+	sessionToken: string;
+	userAgent: string;
+	apiClient: string;
+	clientMetadata: ClientMetadata;
+	createdAt: number;
 }
 /**
  * Fingerprint version for history tracking.
  * Stores a snapshot of a fingerprint with metadata about when/why it was saved.
  */
 export interface FingerprintVersion {
-  fingerprint: Fingerprint
-  timestamp: number
-  reason: 'initial' | 'regenerated' | 'restored'
+	fingerprint: Fingerprint;
+	timestamp: number;
+	reason: "initial" | "regenerated" | "restored";
 }
 
 /** Maximum number of fingerprint versions to keep per account */
-export const MAX_FINGERPRINT_HISTORY = 5
+export const MAX_FINGERPRINT_HISTORY = 5;
 
 export interface FingerprintHeaders {
-  'User-Agent': string
+	"User-Agent": string;
 }
 
 function normalizeHarnessPlatform(platform = process.platform): string {
-  return platform === 'win32' ? 'windows' : platform || 'unknown'
+	return platform === "win32" ? "windows" : platform || "unknown";
 }
 
 function normalizeHarnessArch(arch = process.arch): string {
-  switch (arch) {
-    case 'x64':
-      return 'amd64'
-    case 'ia32':
-      return '386'
-    default:
-      return arch || 'unknown'
-  }
+	switch (arch) {
+		case "x64":
+			return "amd64";
+		case "ia32":
+			return "386";
+		default:
+			return arch || "unknown";
+	}
 }
 
 export function buildAntigravityHarnessPlatformArch(
-  platform = process.platform,
-  arch = process.arch,
+	platform = process.platform,
+	arch = process.arch,
 ): string {
-  return `${normalizeHarnessPlatform(platform)}/${normalizeHarnessArch(arch)}`
+	return `${normalizeHarnessPlatform(platform)}/${normalizeHarnessArch(arch)}`;
 }
 
 export function buildAntigravityHarnessUserAgent(
-  version = AGY_CLI_VERSION,
-  platform = process.platform,
-  arch = process.arch,
-  authMethod = 'consumer',
+	version = AGY_CLI_VERSION,
+	platform = process.platform,
+	arch = process.arch,
+	authMethod = "consumer",
 ): string {
-  const osType = normalizeHarnessPlatform(platform)
-  const normalizedArch = normalizeHarnessArch(arch)
-  const changeList =
-    version === AGY_CLI_VERSION ? `; cl=${AGY_CLI_CHANGE_LIST}` : ''
-  return `antigravity/cli/${version} (aidev_client; os_type=${osType}; arch=${normalizedArch}${changeList}; auth_method=${authMethod})`
+	const osType = normalizeHarnessPlatform(platform);
+	const normalizedArch = normalizeHarnessArch(arch);
+	const changeList = version === AGY_CLI_VERSION ? `; cl=${AGY_CLI_CHANGE_LIST}` : "";
+	return `antigravity/cli/${version} (aidev_client; os_type=${osType}; arch=${normalizedArch}${changeList}; auth_method=${authMethod})`;
 }
 
-export function buildAntigravityHarnessLoadCodeAssistUserAgent(
-  version = AGY_CLI_VERSION,
-): string {
-  return buildAntigravityHarnessUserAgent(version)
+export function buildAntigravityHarnessLoadCodeAssistUserAgent(version = AGY_CLI_VERSION): string {
+	return buildAntigravityHarnessUserAgent(version);
 }
 
-function platformToMetadataPlatform(
-  platform: string = process.platform,
-): 'WINDOWS' | 'MACOS' {
-  return platform === 'win32' ? 'WINDOWS' : 'MACOS'
+function platformToMetadataPlatform(platform: string = process.platform): "WINDOWS" | "MACOS" {
+	return platform === "win32" ? "WINDOWS" : "MACOS";
 }
 
-export function buildAntigravityLoadCodeAssistMetadata(): Record<
-  string,
-  string
-> {
-  return { ideType: 'ANTIGRAVITY' }
+export function buildAntigravityLoadCodeAssistMetadata(): Record<string, string> {
+	return { ideType: "ANTIGRAVITY" };
 }
 
 export function buildAntigravityHarnessBootstrapHeaders(
-  accessToken: string,
+	accessToken: string,
 ): Record<string, string> {
-  return {
-    'User-Agent': buildAntigravityHarnessLoadCodeAssistUserAgent(),
-    Authorization: `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-    'Accept-Encoding': 'gzip',
-  }
+	return {
+		"User-Agent": buildAntigravityHarnessLoadCodeAssistUserAgent(),
+		Authorization: `Bearer ${accessToken}`,
+		"Content-Type": "application/json",
+		"Accept-Encoding": "gzip",
+	};
 }
 
 function generateDeviceId(): string {
-  return crypto.randomUUID()
+	return crypto.randomUUID();
 }
 
 function generateSessionToken(): string {
-  return crypto.randomBytes(16).toString('hex')
+	return crypto.randomBytes(16).toString("hex");
 }
 
 /**
@@ -122,25 +114,25 @@ function generateSessionToken(): string {
  * The outward HTTP identity is stable; deviceId/sessionToken remain unique for history.
  */
 export function generateFingerprint(): Fingerprint {
-  return {
-    deviceId: generateDeviceId(),
-    sessionToken: generateSessionToken(),
-    userAgent: buildAntigravityHarnessUserAgent(),
-    apiClient: ANTIGRAVITY_API_CLIENT,
-    clientMetadata: {
-      ideType: 'ANTIGRAVITY',
-      platform: platformToMetadataPlatform(),
-      pluginType: 'GEMINI',
-    },
-    createdAt: Date.now(),
-  }
+	return {
+		deviceId: generateDeviceId(),
+		sessionToken: generateSessionToken(),
+		userAgent: buildAntigravityHarnessUserAgent(),
+		apiClient: ANTIGRAVITY_API_CLIENT,
+		clientMetadata: {
+			ideType: "ANTIGRAVITY",
+			platform: platformToMetadataPlatform(),
+			pluginType: "GEMINI",
+		},
+		createdAt: Date.now(),
+	};
 }
 
 /**
  * Collect the current content-request fingerprint.
  */
 export function collectCurrentFingerprint(): Fingerprint {
-  return generateFingerprint()
+	return generateFingerprint();
 }
 
 /**
@@ -150,13 +142,13 @@ export function collectCurrentFingerprint(): Fingerprint {
  * Returns true if the User-Agent was changed.
  */
 export function updateFingerprintVersion(fingerprint: Fingerprint): boolean {
-  const userAgent = buildAntigravityHarnessUserAgent()
-  if (fingerprint.userAgent === userAgent) {
-    return false
-  }
+	const userAgent = buildAntigravityHarnessUserAgent();
+	if (fingerprint.userAgent === userAgent) {
+		return false;
+	}
 
-  fingerprint.userAgent = userAgent
-  return true
+	fingerprint.userAgent = userAgent;
+	return true;
 }
 
 /**
@@ -164,32 +156,32 @@ export function updateFingerprintVersion(fingerprint: Fingerprint): boolean {
  * These headers are used to identify the "device" making API requests.
  */
 export function buildFingerprintHeaders(
-  fingerprint: Fingerprint | null,
+	fingerprint: Fingerprint | null,
 ): Partial<FingerprintHeaders> {
-  if (!fingerprint) {
-    return {}
-  }
+	if (!fingerprint) {
+		return {};
+	}
 
-  return {
-    'User-Agent': buildAntigravityHarnessUserAgent(),
-  }
+	return {
+		"User-Agent": buildAntigravityHarnessUserAgent(),
+	};
 }
 
 /**
  * Session-level fingerprint instance.
  * Generated once at module load, persists for the lifetime of the process.
  */
-let sessionFingerprint: Fingerprint | null = null
+let sessionFingerprint: Fingerprint | null = null;
 
 /**
  * Get or create the session fingerprint.
  * Returns the same fingerprint for all calls within a session.
  */
 export function getSessionFingerprint(): Fingerprint {
-  if (!sessionFingerprint) {
-    sessionFingerprint = generateFingerprint()
-  }
-  return sessionFingerprint
+	if (!sessionFingerprint) {
+		sessionFingerprint = generateFingerprint();
+	}
+	return sessionFingerprint;
 }
 
 /**
@@ -197,8 +189,8 @@ export function getSessionFingerprint(): Fingerprint {
  * Call this to get a fresh identity (e.g., after rate limiting).
  */
 export function regenerateSessionFingerprint(): Fingerprint {
-  sessionFingerprint = generateFingerprint()
-  return sessionFingerprint
+	sessionFingerprint = generateFingerprint();
+	return sessionFingerprint;
 }
 
 /**
@@ -207,5 +199,5 @@ export function regenerateSessionFingerprint(): Fingerprint {
  * use `regenerateSessionFingerprint` to also return the new value.
  */
 export function clearSessionFingerprint(): void {
-  sessionFingerprint = null
+	sessionFingerprint = null;
 }

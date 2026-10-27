@@ -1,4 +1,4 @@
-import type { VaultGrantReach } from './vault-account-source.ts'
+import type { VaultGrantReach } from "./vault-account-source.ts";
 
 /**
  * Why an approved vault lists no accounts for this host, from the grants the
@@ -12,17 +12,12 @@ import type { VaultGrantReach } from './vault-account-source.ts'
  * - `unknown`: the vault, its client or this process has not reported the
  *   grants. An absent count is never read as zero grants.
  */
-export type EmptyVaultRosterCause =
-  | 'no-grant'
-  | 'grant-reaches-nothing'
-  | 'unknown'
+export type EmptyVaultRosterCause = "no-grant" | "grant-reaches-nothing" | "unknown";
 
-export function emptyVaultRosterCause(
-  reach: VaultGrantReach | undefined,
-): EmptyVaultRosterCause {
-  if (reach === undefined) return 'unknown'
-  if (reach.grants === 0) return 'no-grant'
-  return 'grant-reaches-nothing'
+export function emptyVaultRosterCause(reach: VaultGrantReach | undefined): EmptyVaultRosterCause {
+	if (reach === undefined) return "unknown";
+	if (reach.grants === 0) return "no-grant";
+	return "grant-reaches-nothing";
 }
 
 /**
@@ -30,5 +25,5 @@ export function emptyVaultRosterCause(
  * existing logins from the provider registry, then check what the vault now
  * holds.
  */
-export const VAULT_RECLASSIFY_COMMAND = 'ck auth reclassify --from-registry'
-export const VAULT_STATUS_COMMAND = 'ck auth status'
+export const VAULT_RECLASSIFY_COMMAND = "ck auth reclassify --from-registry";
+export const VAULT_STATUS_COMMAND = "ck auth status";

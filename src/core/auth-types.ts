@@ -1,42 +1,39 @@
 // Harness-agnostic auth/credential types shared by core and harness packages.
 
 export interface OAuthAuthDetails {
-  type: 'oauth'
-  refresh: string
-  access?: string
-  expires?: number
+	type: "oauth";
+	refresh: string;
+	access?: string;
+	expires?: number;
 }
 
 export interface ApiKeyAuthDetails {
-  type: 'api_key'
-  key: string
+	type: "api_key";
+	key: string;
 }
 
 export interface NonOAuthAuthDetails {
-  type: string
-  [key: string]: unknown
+	type: string;
+	[key: string]: unknown;
 }
 
-export type AuthDetails =
-  | OAuthAuthDetails
-  | ApiKeyAuthDetails
-  | NonOAuthAuthDetails
+export type AuthDetails = OAuthAuthDetails | ApiKeyAuthDetails | NonOAuthAuthDetails;
 
-export type GetAuth = () => Promise<AuthDetails>
+export type GetAuth = () => Promise<AuthDetails>;
 
 export interface RefreshParts {
-  refreshToken: string
-  projectId?: string | undefined
-  managedProjectId?: string | undefined
+	refreshToken: string;
+	projectId?: string | undefined;
+	managedProjectId?: string | undefined;
 }
 
 export interface ProjectContextResult {
-  auth: OAuthAuthDetails
-  effectiveProjectId: string
-  /**
-   * Plan tier captured from the `loadCodeAssist` payload at project-context
-   * resolution time. Present only when the upstream returned a non-empty
-   * `currentTier.id`; absent when the payload lacked tier info.
-   */
-  capturedTier?: { id: string; paidId?: string; capturedAt: number } | undefined
+	auth: OAuthAuthDetails;
+	effectiveProjectId: string;
+	/**
+	 * Plan tier captured from the `loadCodeAssist` payload at project-context
+	 * resolution time. Present only when the upstream returned a non-empty
+	 * `currentTier.id`; absent when the payload lacked tier info.
+	 */
+	capturedTier?: { id: string; paidId?: string; capturedAt: number } | undefined;
 }

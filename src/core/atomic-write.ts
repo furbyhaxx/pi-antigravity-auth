@@ -23,18 +23,18 @@
  * whether to retry, surface, or back off.
  */
 
-import { randomUUID } from 'node:crypto'
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { randomUUID } from "node:crypto";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 export interface WriteJsonAtomicOptions {
-  /**
-   * Called with the staged temp file's path after it has been fully
-   * written and immediately before it is renamed onto the target. Throw
-   * (or reject) to abort the write: the temp file is removed, the target
-   * keeps its previous contents, and the error is rethrown to the caller.
-   */
-  beforeRename?: (tempPath: string) => Promise<void> | void
+	/**
+	 * Called with the staged temp file's path after it has been fully
+	 * written and immediately before it is renamed onto the target. Throw
+	 * (or reject) to abort the write: the temp file is removed, the target
+	 * keeps its previous contents, and the error is rethrown to the caller.
+	 */
+	beforeRename?: (tempPath: string) => Promise<void> | void;
 }
 
 /**
@@ -43,32 +43,32 @@ export interface WriteJsonAtomicOptions {
  * rethrow so no `${path}.<uuid>.tmp` is left behind.
  */
 export async function writeJsonAtomic(
-  path: string,
-  value: unknown,
-  options?: WriteJsonAtomicOptions,
+	path: string,
+	value: unknown,
+	options?: WriteJsonAtomicOptions,
 ): Promise<void> {
-  const serialized = `${JSON.stringify(value, null, 2)}\n`
-  const tempPath = `${path}.${randomUUID()}.tmp`
+	const serialized = `${JSON.stringify(value, null, 2)}\n`;
+	const tempPath = `${path}.${randomUUID()}.tmp`;
 
-  await mkdir(dirname(path), { recursive: true })
+	await mkdir(dirname(path), { recursive: true });
 
-  let renamed = false
-  try {
-    await writeFile(tempPath, serialized, {
-      encoding: 'utf8',
-      mode: 0o600,
-    })
-    const beforeRename = options?.beforeRename
-    if (beforeRename) await beforeRename(tempPath)
-    await rename(tempPath, path)
-    renamed = true
-  } finally {
-    if (!renamed) {
-      // Cleanup the staged temp whether `writeFile` threw after a partial
-      // write, the `beforeRename` guard refused, or `rename` failed.
-      // `force: true` makes the call a no-op when the file never landed on
-      // disk.
-      await rm(tempPath, { force: true }).catch(() => {})
-    }
-  }
+	let renamed = false;
+	try {
+		await writeFile(tempPath, serialized, {
+			encoding: "utf8",
+			mode: 0o600,
+		});
+		const beforeRename = options?.beforeRename;
+		if (beforeRename) await beforeRename(tempPath);
+		await rename(tempPath, path);
+		renamed = true;
+	} finally {
+		if (!renamed) {
+			// Cleanup the staged temp whether `writeFile` threw after a partial
+			// write, the `beforeRename` guard refused, or `rename` failed.
+			// `force: true` makes the call a no-op when the file never landed on
+			// disk.
+			await rm(tempPath, { force: true }).catch(() => {});
+		}
+	}
 }

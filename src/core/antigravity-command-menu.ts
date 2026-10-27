@@ -19,53 +19,50 @@
  * and the settings arrive from the caller.
  */
 
-import { randomBytes } from 'node:crypto'
+import { randomBytes } from "node:crypto";
 
-import { rowRefKey } from './account-identity.ts'
+import { rowRefKey } from "./account-identity.ts";
 import type {
-  AccountRepository,
-  AccountRepositoryRead,
-  AccountRow,
-  RoutingTarget,
-  RowRef,
-} from './account-repository-types.ts'
-import type { CommonAuthCommandsModule } from './common-auth-runtime.ts'
-import { formatAntigravityQuota } from './quota-presentation.ts'
+	AccountRepository,
+	AccountRepositoryRead,
+	AccountRow,
+	RoutingTarget,
+	RowRef,
+} from "./account-repository-types.ts";
+import type { CommonAuthCommandsModule } from "./common-auth-runtime.ts";
+import { formatAntigravityQuota } from "./quota-presentation.ts";
 
-type Commands = CommonAuthCommandsModule
-type CommandMenu = ReturnType<Commands['createCommandMenu']>
-type CommandMenuOptions = Parameters<Commands['createCommandMenu']>[0]
-type PluginSection = NonNullable<CommandMenuOptions['cache']>
-type PluginExtraSection = NonNullable<CommandMenuOptions['extras']>[number]
-type SectionContent = Awaited<ReturnType<PluginSection['build']>>
-type ItemDefinition = NonNullable<SectionContent['items']>[number]
-type ActionDefinition = NonNullable<ItemDefinition['actions']>[number]
-type ActionOutcome = Exclude<
-  Awaited<ReturnType<ActionDefinition['run']>>,
-  string
->
-type CommandInvocation = Parameters<PluginSection['build']>[0]
+type Commands = CommonAuthCommandsModule;
+type CommandMenu = ReturnType<Commands["createCommandMenu"]>;
+type CommandMenuOptions = Parameters<Commands["createCommandMenu"]>[0];
+type PluginSection = NonNullable<CommandMenuOptions["cache"]>;
+type PluginExtraSection = NonNullable<CommandMenuOptions["extras"]>[number];
+type SectionContent = Awaited<ReturnType<PluginSection["build"]>>;
+type ItemDefinition = NonNullable<SectionContent["items"]>[number];
+type ActionDefinition = NonNullable<ItemDefinition["actions"]>[number];
+type ActionOutcome = Exclude<Awaited<ReturnType<ActionDefinition["run"]>>, string>;
+type CommandInvocation = Parameters<PluginSection["build"]>[0];
 
 /** The slash command's name, without the slash. */
-export const ANTIGRAVITY_MENU_COMMAND = 'antigravity'
-export const ANTIGRAVITY_MENU_TITLE = 'Antigravity'
+export const ANTIGRAVITY_MENU_COMMAND = "antigravity";
+export const ANTIGRAVITY_MENU_TITLE = "Antigravity";
 
 /** `disabledReason` recorded when the user disables an account from the menu. */
-export const ANTIGRAVITY_MENU_DISABLED_REASON = 'disabled from the command menu'
+export const ANTIGRAVITY_MENU_DISABLED_REASON = "disabled from the command menu";
 
 /** The account operations the menu reads and writes. */
 export type AntigravityMenuAccounts = Pick<
-  AccountRepository,
-  'read' | 'setEnabled' | 'remove' | 'selectAccount'
->
+	AccountRepository,
+	"read" | "setEnabled" | "remove" | "selectAccount"
+>;
 
 /** Account selection and killswitch values shown by the settings sections. */
 export interface AntigravityMenuSettings {
-  readonly selectionStrategy: 'sticky' | 'round-robin' | 'hybrid' | 'vault'
-  readonly killswitch: {
-    readonly enabled: boolean
-    readonly minimumRemainingPercent: number
-  }
+	readonly selectionStrategy: "sticky" | "round-robin" | "hybrid" | "vault";
+	readonly killswitch: {
+		readonly enabled: boolean;
+		readonly minimumRemainingPercent: number;
+	};
 }
 
 /**
@@ -74,8 +71,8 @@ export interface AntigravityMenuSettings {
  * method writes.
  */
 export interface AntigravityMenuSettingsSource {
-  read(): AntigravityMenuSettings | Promise<AntigravityMenuSettings>
-  updateKillswitch(next: AntigravityMenuSettings['killswitch']): Promise<void>
+	read(): AntigravityMenuSettings | Promise<AntigravityMenuSettings>;
+	updateKillswitch(next: AntigravityMenuSettings["killswitch"]): Promise<void>;
 }
 
 /**
@@ -85,20 +82,20 @@ export interface AntigravityMenuSettingsSource {
  * or is unusable, or failed).
  */
 export interface AntigravityQuotaCheckReport {
-  readonly checked: number
-  readonly notChecked: number
+	readonly checked: number;
+	readonly notChecked: number;
 }
 
 /** Options both menu modes share; the host's sections and the menu plumbing. */
 interface AntigravityMenuSharedOptions {
-  /** common-auth's public `./commands` entry, as `loadCommonAuthCommands` returns it. */
-  readonly commands: Commands
-  readonly cache?: PluginSection
-  readonly diagnostics?: PluginSection
-  readonly extras?: readonly PluginExtraSection[]
-  readonly logger?: CommandMenuOptions['logger']
-  readonly redaction?: CommandMenuOptions['redaction']
-  readonly now?: () => number
+	/** common-auth's public `./commands` entry, as `loadCommonAuthCommands` returns it. */
+	readonly commands: Commands;
+	readonly cache?: PluginSection;
+	readonly diagnostics?: PluginSection;
+	readonly extras?: readonly PluginExtraSection[];
+	readonly logger?: CommandMenuOptions["logger"];
+	readonly redaction?: CommandMenuOptions["redaction"];
+	readonly now?: () => number;
 }
 
 /**
@@ -106,48 +103,44 @@ interface AntigravityMenuSharedOptions {
  * Accounts, Quota, Routing and Limits sections from the repository and the
  * location's operator settings.
  */
-export interface AntigravityRepositoryMenuOptions
-  extends AntigravityMenuSharedOptions {
-  readonly source: 'repository'
-  readonly accounts: AntigravityMenuAccounts
-  readonly settings: AntigravityMenuSettingsSource
-  /**
-   * Checks quota now for exactly the given account credentials and reports
-   * how many readings were taken. Without it the Quota section offers no
-   * check action.
-   */
-  readonly refreshQuota?: (
-    refs: readonly RowRef[],
-    invocation: CommandInvocation,
-  ) => Promise<AntigravityQuotaCheckReport>
-  /**
-   * The host's login. It returns the text to show; the host owns the OAuth
-   * flow (browser, callback, manual paste) and adds the account itself.
-   */
-  readonly login?: {
-    readonly label?: string
-    run(invocation: CommandInvocation): Promise<string | ActionOutcome>
-  }
-  /**
-   * Per-account quota floors the host keeps. Without it the account items
-   * offer no floor action.
-   */
-  readonly accountLimits?: AntigravityAccountLimitSource
-  /**
-   * The host's re-authentication of one account: a fresh sign-in that
-   * replaces exactly the credential named by the captured reference. It may
-   * finish later (a browser sign-in); it reports through the invocation.
-   * Without it the account items offer no Reauthorize action.
-   */
-  readonly reauthorize?: {
-    readonly label?: string
-    run(
-      ref: RowRef,
-      invocation: CommandInvocation,
-    ): Promise<string | ActionOutcome>
-  }
-  /** Item id source; defaults to 128 random bits. */
-  readonly createItemId?: () => string
+export interface AntigravityRepositoryMenuOptions extends AntigravityMenuSharedOptions {
+	readonly source: "repository";
+	readonly accounts: AntigravityMenuAccounts;
+	readonly settings: AntigravityMenuSettingsSource;
+	/**
+	 * Checks quota now for exactly the given account credentials and reports
+	 * how many readings were taken. Without it the Quota section offers no
+	 * check action.
+	 */
+	readonly refreshQuota?: (
+		refs: readonly RowRef[],
+		invocation: CommandInvocation,
+	) => Promise<AntigravityQuotaCheckReport>;
+	/**
+	 * The host's login. It returns the text to show; the host owns the OAuth
+	 * flow (browser, callback, manual paste) and adds the account itself.
+	 */
+	readonly login?: {
+		readonly label?: string;
+		run(invocation: CommandInvocation): Promise<string | ActionOutcome>;
+	};
+	/**
+	 * Per-account quota floors the host keeps. Without it the account items
+	 * offer no floor action.
+	 */
+	readonly accountLimits?: AntigravityAccountLimitSource;
+	/**
+	 * The host's re-authentication of one account: a fresh sign-in that
+	 * replaces exactly the credential named by the captured reference. It may
+	 * finish later (a browser sign-in); it reports through the invocation.
+	 * Without it the account items offer no Reauthorize action.
+	 */
+	readonly reauthorize?: {
+		readonly label?: string;
+		run(ref: RowRef, invocation: CommandInvocation): Promise<string | ActionOutcome>;
+	};
+	/** Item id source; defaults to 128 random bits. */
+	readonly createItemId?: () => string;
 }
 
 /**
@@ -159,21 +152,18 @@ export interface AntigravityRepositoryMenuOptions
  * row's current one, and then writes nothing.
  */
 export interface AntigravityAccountLimitSource {
-  /** The account's own floor, or null when it follows the global floor. */
-  read(ref: RowRef): number | null | Promise<number | null>
-  /** Sets the floor; null returns the account to the global floor. */
-  write(
-    ref: RowRef,
-    minimumRemainingPercent: number | null,
-  ): Promise<'applied' | 'stale'>
+	/** The account's own floor, or null when it follows the global floor. */
+	read(ref: RowRef): number | null | Promise<number | null>;
+	/** Sets the floor; null returns the account to the global floor. */
+	write(ref: RowRef, minimumRemainingPercent: number | null): Promise<"applied" | "stale">;
 }
 
 /** The four account slots, each supplied by the host. */
 export interface AntigravityMenuSections {
-  readonly accounts: PluginSection
-  readonly quota: PluginSection
-  readonly routing: PluginSection
-  readonly limits: PluginSection
+	readonly accounts: PluginSection;
+	readonly quota: PluginSection;
+	readonly routing: PluginSection;
+	readonly limits: PluginSection;
 }
 
 /**
@@ -182,15 +172,14 @@ export interface AntigravityMenuSections {
  * read or written; the host's items and actions run through the same
  * library dispatcher.
  */
-export interface AntigravitySectionsMenuOptions
-  extends AntigravityMenuSharedOptions {
-  readonly source: 'sections'
-  readonly sections: AntigravityMenuSections
+export interface AntigravitySectionsMenuOptions extends AntigravityMenuSharedOptions {
+	readonly source: "sections";
+	readonly sections: AntigravityMenuSections;
 }
 
 export type AntigravityCommandMenuOptions =
-  | AntigravityRepositoryMenuOptions
-  | AntigravitySectionsMenuOptions
+	| AntigravityRepositoryMenuOptions
+	| AntigravitySectionsMenuOptions;
 
 // ---------------------------------------------------------------------------
 // Item ids
@@ -201,108 +190,104 @@ export type AntigravityCommandMenuOptions =
  * credential that changes gets a new id; the old one is never reissued.
  */
 interface ItemIds {
-  idFor(ref: RowRef): string
+	idFor(ref: RowRef): string;
 }
 
 function createItemIds(create: () => string): ItemIds {
-  const byRef = new Map<string, string>()
-  const issued = new Set<string>()
-  return {
-    idFor(ref) {
-      const key = rowRefKey(ref)
-      const existing = byRef.get(key)
-      if (existing !== undefined) return existing
-      let id = create()
-      while (issued.has(id)) id = create()
-      issued.add(id)
-      byRef.set(key, id)
-      return id
-    },
-  }
+	const byRef = new Map<string, string>();
+	const issued = new Set<string>();
+	return {
+		idFor(ref) {
+			const key = rowRefKey(ref);
+			const existing = byRef.get(key);
+			if (existing !== undefined) return existing;
+			let id = create();
+			while (issued.has(id)) id = create();
+			issued.add(id);
+			byRef.set(key, id);
+			return id;
+		},
+	};
 }
 
 function randomItemId(): string {
-  return `acct-${randomBytes(16).toString('base64url')}`
+	return `acct-${randomBytes(16).toString("base64url")}`;
 }
 
 // ---------------------------------------------------------------------------
 // Row text
 // ---------------------------------------------------------------------------
 
-type ReadyRead = Extract<AccountRepositoryRead, { status: 'ready' }>
+type ReadyRead = Extract<AccountRepositoryRead, { status: "ready" }>;
 
 function notReadyLines(read: AccountRepositoryRead): string[] {
-  switch (read.status) {
-    case 'ready':
-      return []
-    case 'pending-migration':
-      return [
-        'The account store is waiting for migration. Run `antigravity-auth migrate --offline`.',
-      ]
-    case 'management-pending':
-      return ['An account operation is still finishing; try again shortly.']
-    case 'error':
-      return [`The account store could not be read (${read.file} file).`]
-  }
+	switch (read.status) {
+		case "ready":
+			return [];
+		case "pending-migration":
+			return [
+				"The account store is waiting for migration. Run `antigravity-auth migrate --offline`.",
+			];
+		case "management-pending":
+			return ["An account operation is still finishing; try again shortly."];
+		case "error":
+			return [`The account store could not be read (${read.file} file).`];
+	}
 }
 
 function isActive(read: ReadyRead, ref: RowRef): boolean {
-  const active = read.routing?.activeRow
-  return (
-    active !== undefined &&
-    active !== null &&
-    rowRefKey(active) === rowRefKey(ref)
-  )
+	const active = read.routing?.activeRow;
+	return active !== undefined && active !== null && rowRefKey(active) === rowRefKey(ref);
 }
 
 /** What blocks the row, from its metadata; never its email or reason text. */
 function blockOf(row: AccountRow): string | undefined {
-  if (row.metadata.status !== 'present') return 'metadata unavailable'
-  const metadata = row.metadata.metadata
-  if (metadata.verificationRequired === true) return 'verification required'
-  if (metadata.accountIneligible === true) return 'ineligible'
-  return undefined
+	if (row.metadata.status !== "present") return "metadata unavailable";
+	const metadata = row.metadata.metadata;
+	if (metadata.verificationRequired === true) return "verification required";
+	if (metadata.accountIneligible === true) return "ineligible";
+	return undefined;
 }
 
 function statusOf(row: AccountRow, now: number): string {
-  if (!row.enabled) return 'disabled'
-  const block = blockOf(row)
-  if (block) return block
-  if (row.metadata.status === 'present') {
-    const until = row.metadata.metadata.coolingDownUntil
-    if (typeof until === 'number' && until > now) return 'cooling down'
-  }
-  return row.usable ? 'ready' : 'unusable'
+	if (!row.enabled) return "disabled";
+	const block = blockOf(row);
+	if (block) return block;
+	if (row.metadata.status === "present") {
+		const until = row.metadata.metadata.coolingDownUntil;
+		if (typeof until === "number" && until > now) return "cooling down";
+	}
+	return row.usable ? "ready" : "unusable";
 }
 
 function quotaLine(row: AccountRow, position: number): string {
-  const quota = row.quota.status === 'present' ? row.quota.quota : undefined
-  return `Account ${position + 1}: ${formatAntigravityQuota(quota, { now: Date.now() })}`
+	const quota = row.quota.status === "present" ? row.quota.quota : undefined;
+	return `Account ${position + 1}: ${formatAntigravityQuota(quota, { now: Date.now() })}`;
 }
 
 function failure(text: string, code: string): ActionOutcome {
-  return { ok: false, text, code }
+	return { ok: false, text, code };
 }
 
 /** Repository failures that mean the captured credential has changed. */
-const STALE_KINDS = new Set(['attribution', 'unknown-row', 'id-removed'])
+const STALE_KINDS = new Set(["attribution", "unknown-row", "id-removed"]);
 
 function staleOrRethrow(error: unknown): ActionOutcome {
-  const kind =
-    typeof error === 'object' &&
-    error !== null &&
-    'failure' in error &&
-    typeof error.failure === 'object' &&
-    error.failure !== null &&
-    'kind' in error.failure
-      ? error.failure.kind
-      : undefined
-  if (typeof kind === 'string' && STALE_KINDS.has(kind))
-    return failure(
-      'That account changed since the menu was opened; nothing was changed.',
-      'stale-account',
-    )
-  throw error
+	const kind =
+		typeof error === "object" &&
+		error !== null &&
+		"failure" in error &&
+		typeof error.failure === "object" &&
+		error.failure !== null &&
+		"kind" in error.failure
+			? error.failure.kind
+			: undefined;
+	if (typeof kind === "string" && STALE_KINDS.has(kind))
+		return failure(
+			"That account changed since the menu was opened; nothing was changed.",
+			"stale-account",
+		);
+	throw error;
 }
 
 // ---------------------------------------------------------------------------
@@ -310,257 +295,242 @@ function staleOrRethrow(error: unknown): ActionOutcome {
 // ---------------------------------------------------------------------------
 
 const ROUTING_TARGETS: readonly { value: RoutingTarget; label: string }[] = [
-  { value: 'active', label: 'All models' },
-  { value: 'claude', label: 'Claude models' },
-  { value: 'gemini', label: 'Gemini models' },
-]
+	{ value: "active", label: "All models" },
+	{ value: "claude", label: "Claude models" },
+	{ value: "gemini", label: "Gemini models" },
+];
 
 function isRoutingTarget(value: unknown): value is RoutingTarget {
-  return ROUTING_TARGETS.some((target) => target.value === value)
+	return ROUTING_TARGETS.some((target) => target.value === value);
 }
 
 /** The account item's re-authentication action, over the host's sign-in. */
 function reauthorizeAction(
-  reauthorize: NonNullable<AntigravityRepositoryMenuOptions['reauthorize']>,
-  ref: RowRef,
+	reauthorize: NonNullable<AntigravityRepositoryMenuOptions["reauthorize"]>,
+	ref: RowRef,
 ): ActionDefinition {
-  return {
-    id: 'reauthorize',
-    label: reauthorize.label ?? 'Reauthorize',
-    description: "Sign in again to replace this account's saved login.",
-    run: ({ invocation }) => reauthorize.run(ref, invocation),
-  }
+	return {
+		id: "reauthorize",
+		label: reauthorize.label ?? "Reauthorize",
+		description: "Sign in again to replace this account's saved login.",
+		run: ({ invocation }) => reauthorize.run(ref, invocation),
+	};
 }
 
 /** The account item's quota floor action, over the host's floor source. */
 function floorAction(
-  source: AntigravityAccountLimitSource,
-  ref: RowRef,
-  position: number,
-  floor: number | null,
+	source: AntigravityAccountLimitSource,
+	ref: RowRef,
+	position: number,
+	floor: number | null,
 ): ActionDefinition {
-  return {
-    id: 'limit',
-    label: 'Set quota floor',
-    description:
-      'Stop using this account below this remaining quota; leave empty to follow the global floor.',
-    knobs: [
-      {
-        kind: 'number',
-        id: 'minimumRemainingPercent',
-        label: 'Minimum remaining percent',
-        ...(floor !== null ? { value: floor } : {}),
-        min: 0,
-        max: 100,
-      },
-    ],
-    run: async ({ values }) => {
-      const value = values['minimumRemainingPercent']
-      const next = typeof value === 'number' ? value : null
-      let outcome: 'applied' | 'stale'
-      try {
-        outcome = await source.write(ref, next)
-      } catch (error) {
-        return staleOrRethrow(error)
-      }
-      if (outcome === 'stale')
-        return failure(
-          'That account changed since the menu was opened; nothing was changed.',
-          'stale-account',
-        )
-      return next === null
-        ? `Account ${position + 1} follows the global quota floor`
-        : `Account ${position + 1} quota floor set to ${next}%`
-    },
-  }
+	return {
+		id: "limit",
+		label: "Set quota floor",
+		description:
+			"Stop using this account below this remaining quota; leave empty to follow the global floor.",
+		knobs: [
+			{
+				kind: "number",
+				id: "minimumRemainingPercent",
+				label: "Minimum remaining percent",
+				...(floor !== null ? { value: floor } : {}),
+				min: 0,
+				max: 100,
+			},
+		],
+		run: async ({ values }) => {
+			const value = values["minimumRemainingPercent"];
+			const next = typeof value === "number" ? value : null;
+			let outcome: "applied" | "stale";
+			try {
+				outcome = await source.write(ref, next);
+			} catch (error) {
+				return staleOrRethrow(error);
+			}
+			if (outcome === "stale")
+				return failure(
+					"That account changed since the menu was opened; nothing was changed.",
+					"stale-account",
+				);
+			return next === null
+				? `Account ${position + 1} follows the global quota floor`
+				: `Account ${position + 1} quota floor set to ${next}%`;
+		},
+	};
 }
 
 function accountsSection(
-  options: AntigravityRepositoryMenuOptions,
-  ids: ItemIds,
-  now: () => number,
+	options: AntigravityRepositoryMenuOptions,
+	ids: ItemIds,
+	now: () => number,
 ): PluginSection {
-  const accounts = options.accounts
-  return {
-    title: 'Accounts',
-    async build() {
-      const read = await accounts.read()
-      const sectionActions: ActionDefinition[] = options.login
-        ? [
-            {
-              id: 'add',
-              label: options.login.label ?? 'Add account',
-              run: ({ invocation }) =>
-                options.login
-                  ? options.login.run(invocation)
-                  : Promise.resolve(
-                      failure('Login is unavailable.', 'refused'),
-                    ),
-            },
-          ]
-        : []
-      if (read.status !== 'ready')
-        return { lines: notReadyLines(read), actions: sectionActions }
-      const at = now()
-      const limitSource = options.accountLimits
-      const floors = limitSource
-        ? await Promise.all(read.rows.map((row) => limitSource.read(row.ref)))
-        : []
-      const items: ItemDefinition[] = read.rows.map((row, position) => {
-        const floor = floors[position] ?? null
-        const ref = row.ref
-        const active = isActive(read, ref)
-        const actions: ActionDefinition[] = [
-          row.enabled
-            ? {
-                id: 'disable',
-                label: 'Disable',
-                run: async () => {
-                  try {
-                    await accounts.setEnabled(ref, {
-                      enabled: false,
-                      actor: 'user',
-                      reason: ANTIGRAVITY_MENU_DISABLED_REASON,
-                    })
-                  } catch (error) {
-                    return staleOrRethrow(error)
-                  }
-                  return `Account ${position + 1} disabled`
-                },
-              }
-            : {
-                id: 'enable',
-                label: 'Enable',
-                run: async () => {
-                  try {
-                    await accounts.setEnabled(ref, {
-                      enabled: true,
-                      actor: 'user',
-                    })
-                  } catch (error) {
-                    return staleOrRethrow(error)
-                  }
-                  return `Account ${position + 1} enabled`
-                },
-              },
-          {
-            id: 'select',
-            label: 'Use this account',
-            knobs: [
-              {
-                kind: 'choice',
-                id: 'target',
-                label: 'For',
-                choices: ROUTING_TARGETS.map((target) => ({
-                  value: target.value,
-                  label: target.label,
-                })),
-                value: 'active',
-              },
-            ],
-            run: async ({ values }) => {
-              const target = values['target'] ?? 'active'
-              if (!isRoutingTarget(target))
-                return failure('Choose which models to route.', 'invalid-input')
-              try {
-                await accounts.selectAccount(target, ref)
-              } catch (error) {
-                return staleOrRethrow(error)
-              }
-              return `Account ${position + 1} selected`
-            },
-          },
-          {
-            id: 'remove',
-            label: 'Remove',
-            irreversible: true,
-            confirm: `Remove account ${position + 1}? Its saved login is deleted.`,
-            run: async () => {
-              try {
-                await accounts.remove(ref)
-              } catch (error) {
-                return staleOrRethrow(error)
-              }
-              return `Account ${position + 1} removed`
-            },
-          },
-          ...(limitSource
-            ? [floorAction(limitSource, ref, position, floor)]
-            : []),
-          ...(options.reauthorize
-            ? [reauthorizeAction(options.reauthorize, ref)]
-            : []),
-        ]
-        return {
-          id: ids.idFor(ref),
-          label: `Account ${position + 1}`,
-          detail: `${statusOf(row, at)}${active ? ' · active' : ''}${floor !== null ? ` · floor ${floor}%` : ''}`,
-          facts: {
-            status: statusOf(row, at),
-            active,
-            ...(floor !== null ? { quotaFloorPercent: floor } : {}),
-          },
-          actions,
-        }
-      })
-      return {
-        lines:
-          items.length === 0
-            ? ['No accounts yet.']
-            : [`${items.length} accounts`],
-        items,
-        actions: sectionActions,
-      }
-    },
-  }
+	const accounts = options.accounts;
+	return {
+		title: "Accounts",
+		async build() {
+			const read = await accounts.read();
+			const sectionActions: ActionDefinition[] = options.login
+				? [
+						{
+							id: "add",
+							label: options.login.label ?? "Add account",
+							run: ({ invocation }) =>
+								options.login
+									? options.login.run(invocation)
+									: Promise.resolve(failure("Login is unavailable.", "refused")),
+						},
+					]
+				: [];
+			if (read.status !== "ready") return { lines: notReadyLines(read), actions: sectionActions };
+			const at = now();
+			const limitSource = options.accountLimits;
+			const floors = limitSource
+				? await Promise.all(read.rows.map((row) => limitSource.read(row.ref)))
+				: [];
+			const items: ItemDefinition[] = read.rows.map((row, position) => {
+				const floor = floors[position] ?? null;
+				const ref = row.ref;
+				const active = isActive(read, ref);
+				const actions: ActionDefinition[] = [
+					row.enabled
+						? {
+								id: "disable",
+								label: "Disable",
+								run: async () => {
+									try {
+										await accounts.setEnabled(ref, {
+											enabled: false,
+											actor: "user",
+											reason: ANTIGRAVITY_MENU_DISABLED_REASON,
+										});
+									} catch (error) {
+										return staleOrRethrow(error);
+									}
+									return `Account ${position + 1} disabled`;
+								},
+							}
+						: {
+								id: "enable",
+								label: "Enable",
+								run: async () => {
+									try {
+										await accounts.setEnabled(ref, {
+											enabled: true,
+											actor: "user",
+										});
+									} catch (error) {
+										return staleOrRethrow(error);
+									}
+									return `Account ${position + 1} enabled`;
+								},
+							},
+					{
+						id: "select",
+						label: "Use this account",
+						knobs: [
+							{
+								kind: "choice",
+								id: "target",
+								label: "For",
+								choices: ROUTING_TARGETS.map((target) => ({
+									value: target.value,
+									label: target.label,
+								})),
+								value: "active",
+							},
+						],
+						run: async ({ values }) => {
+							const target = values["target"] ?? "active";
+							if (!isRoutingTarget(target))
+								return failure("Choose which models to route.", "invalid-input");
+							try {
+								await accounts.selectAccount(target, ref);
+							} catch (error) {
+								return staleOrRethrow(error);
+							}
+							return `Account ${position + 1} selected`;
+						},
+					},
+					{
+						id: "remove",
+						label: "Remove",
+						irreversible: true,
+						confirm: `Remove account ${position + 1}? Its saved login is deleted.`,
+						run: async () => {
+							try {
+								await accounts.remove(ref);
+							} catch (error) {
+								return staleOrRethrow(error);
+							}
+							return `Account ${position + 1} removed`;
+						},
+					},
+					...(limitSource ? [floorAction(limitSource, ref, position, floor)] : []),
+					...(options.reauthorize ? [reauthorizeAction(options.reauthorize, ref)] : []),
+				];
+				return {
+					id: ids.idFor(ref),
+					label: `Account ${position + 1}`,
+					detail: `${statusOf(row, at)}${active ? " · active" : ""}${floor !== null ? ` · floor ${floor}%` : ""}`,
+					facts: {
+						status: statusOf(row, at),
+						active,
+						...(floor !== null ? { quotaFloorPercent: floor } : {}),
+					},
+					actions,
+				};
+			});
+			return {
+				lines: items.length === 0 ? ["No accounts yet."] : [`${items.length} accounts`],
+				items,
+				actions: sectionActions,
+			};
+		},
+	};
 }
 
-function quotaSection(
-  options: AntigravityRepositoryMenuOptions,
-): PluginSection {
-  return {
-    title: 'Quota',
-    async build() {
-      const read = await options.accounts.read()
-      if (read.status !== 'ready') return { lines: notReadyLines(read) }
-      const refs = read.rows.map((row) => row.ref)
-      const refresh = options.refreshQuota
-      return {
-        lines:
-          read.rows.length === 0
-            ? ['No accounts yet.']
-            : read.rows.map((row, position) => quotaLine(row, position)),
-        actions: refresh
-          ? [
-              {
-                id: 'refresh',
-                label: 'Check quota now',
-                run: async ({ invocation }) => {
-                  const report = await refresh(refs, invocation)
-                  return quotaCheckOutcome(report)
-                },
-              },
-            ]
-          : [],
-      }
-    },
-  }
+function quotaSection(options: AntigravityRepositoryMenuOptions): PluginSection {
+	return {
+		title: "Quota",
+		async build() {
+			const read = await options.accounts.read();
+			if (read.status !== "ready") return { lines: notReadyLines(read) };
+			const refs = read.rows.map((row) => row.ref);
+			const refresh = options.refreshQuota;
+			return {
+				lines:
+					read.rows.length === 0
+						? ["No accounts yet."]
+						: read.rows.map((row, position) => quotaLine(row, position)),
+				actions: refresh
+					? [
+							{
+								id: "refresh",
+								label: "Check quota now",
+								run: async ({ invocation }) => {
+									const report = await refresh(refs, invocation);
+									return quotaCheckOutcome(report);
+								},
+							},
+						]
+					: [],
+			};
+		},
+	};
 }
 
 /** What a quota check shows: never success when no reading was taken. */
-export function quotaCheckOutcome(
-  report: AntigravityQuotaCheckReport,
-): string | ActionOutcome {
-  const total = report.checked + report.notChecked
-  if (total === 0) return 'No accounts to check'
-  if (report.checked === 0)
-    return failure(
-      `Quota could not be checked for any of the ${total} accounts.`,
-      'quota-unavailable',
-    )
-  if (report.notChecked === 0)
-    return `Quota checked for ${report.checked} of ${total} accounts`
-  return `Quota checked for ${report.checked} of ${total} accounts; ${report.notChecked} could not be checked`
+export function quotaCheckOutcome(report: AntigravityQuotaCheckReport): string | ActionOutcome {
+	const total = report.checked + report.notChecked;
+	if (total === 0) return "No accounts to check";
+	if (report.checked === 0)
+		return failure(
+			`Quota could not be checked for any of the ${total} accounts.`,
+			"quota-unavailable",
+		);
+	if (report.notChecked === 0) return `Quota checked for ${report.checked} of ${total} accounts`;
+	return `Quota checked for ${report.checked} of ${total} accounts; ${report.notChecked} could not be checked`;
 }
 
 /**
@@ -569,153 +539,149 @@ export function quotaCheckOutcome(
  * operator settings as the repository-mode menu.
  */
 export function antigravitySettingsSections(
-  settings: AntigravityMenuSettingsSource,
-): Pick<AntigravityMenuSections, 'routing' | 'limits'> {
-  return {
-    routing: routingSection({ settings }),
-    limits: limitsSection({ settings }),
-  }
+	settings: AntigravityMenuSettingsSource,
+): Pick<AntigravityMenuSections, "routing" | "limits"> {
+	return {
+		routing: routingSection({ settings }),
+		limits: limitsSection({ settings }),
+	};
 }
 
 function onOff(value: boolean): string {
-  return value ? 'on' : 'off'
+	return value ? "on" : "off";
 }
 
 function routingSection(options: {
-  readonly settings: AntigravityMenuSettingsSource
+	readonly settings: AntigravityMenuSettingsSource;
 }): PluginSection {
-  return {
-    title: 'Routing',
-    async build() {
-      const strategy = (await options.settings.read()).selectionStrategy
-      const explanations = {
-        sticky: 'Keep the current account until it is unavailable.',
-        'round-robin': 'Rotate among available accounts for each request.',
-        hybrid: 'Choose available accounts using health and quota signals.',
-        vault: "Selection follows the vault's served accounts.",
-      }
-      return {
-        lines:
-          strategy === 'vault'
-            ? [explanations.vault]
-            : [
-                `Account selection strategy: ${strategy}`,
-                explanations[strategy],
-                'Configured in antigravity.json: account_selection_strategy',
-              ],
-      }
-    },
-  }
+	return {
+		title: "Routing",
+		async build() {
+			const strategy = (await options.settings.read()).selectionStrategy;
+			const explanations = {
+				sticky: "Keep the current account until it is unavailable.",
+				"round-robin": "Rotate among available accounts for each request.",
+				hybrid: "Choose available accounts using health and quota signals.",
+				vault: "Selection follows the vault's served accounts.",
+			};
+			return {
+				lines:
+					strategy === "vault"
+						? [explanations.vault]
+						: [
+								`Account selection strategy: ${strategy}`,
+								explanations[strategy],
+								"Configured in antigravity.json: account_selection_strategy",
+							],
+			};
+		},
+	};
 }
 
 function limitsSection(options: {
-  readonly settings: AntigravityMenuSettingsSource
+	readonly settings: AntigravityMenuSettingsSource;
 }): PluginSection {
-  return {
-    title: 'Limits',
-    async build() {
-      const current = (await options.settings.read()).killswitch
-      return {
-        lines: [
-          `Quota killswitch: ${onOff(current.enabled)}`,
-          `Stop using an account below: ${current.minimumRemainingPercent}% remaining`,
-        ],
-        actions: [
-          {
-            id: 'set',
-            label: 'Change limits',
-            knobs: [
-              {
-                kind: 'toggle',
-                id: 'enabled',
-                label: 'Quota killswitch',
-                value: current.enabled,
-              },
-              {
-                kind: 'number',
-                id: 'minimumRemainingPercent',
-                label: 'Minimum remaining percent',
-                value: current.minimumRemainingPercent,
-                min: 0,
-                max: 100,
-              },
-            ],
-            run: async ({ values }) => {
-              const latest = (await options.settings.read()).killswitch
-              await options.settings.updateKillswitch({
-                enabled:
-                  typeof values['enabled'] === 'boolean'
-                    ? values['enabled']
-                    : latest.enabled,
-                minimumRemainingPercent:
-                  typeof values['minimumRemainingPercent'] === 'number'
-                    ? values['minimumRemainingPercent']
-                    : latest.minimumRemainingPercent,
-              })
-              return 'Limits updated'
-            },
-          },
-        ],
-      }
-    },
-  }
+	return {
+		title: "Limits",
+		async build() {
+			const current = (await options.settings.read()).killswitch;
+			return {
+				lines: [
+					`Quota killswitch: ${onOff(current.enabled)}`,
+					`Stop using an account below: ${current.minimumRemainingPercent}% remaining`,
+				],
+				actions: [
+					{
+						id: "set",
+						label: "Change limits",
+						knobs: [
+							{
+								kind: "toggle",
+								id: "enabled",
+								label: "Quota killswitch",
+								value: current.enabled,
+							},
+							{
+								kind: "number",
+								id: "minimumRemainingPercent",
+								label: "Minimum remaining percent",
+								value: current.minimumRemainingPercent,
+								min: 0,
+								max: 100,
+							},
+						],
+						run: async ({ values }) => {
+							const latest = (await options.settings.read()).killswitch;
+							await options.settings.updateKillswitch({
+								enabled:
+									typeof values["enabled"] === "boolean" ? values["enabled"] : latest.enabled,
+								minimumRemainingPercent:
+									typeof values["minimumRemainingPercent"] === "number"
+										? values["minimumRemainingPercent"]
+										: latest.minimumRemainingPercent,
+							});
+							return "Limits updated";
+						},
+					},
+				],
+			};
+		},
+	};
 }
 
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
-const SECTION_SLOTS = ['accounts', 'quota', 'routing', 'limits'] as const
+const SECTION_SLOTS = ["accounts", "quota", "routing", "limits"] as const;
 
 function isPluginSection(value: unknown): value is PluginSection {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'title' in value &&
-    typeof value.title === 'string' &&
-    'build' in value &&
-    typeof value.build === 'function'
-  )
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"title" in value &&
+		typeof value.title === "string" &&
+		"build" in value &&
+		typeof value.build === "function"
+	);
 }
 
 /** The four account slots for the chosen mode; refuses an incomplete mode. */
-function accountSlots(
-  options: AntigravityCommandMenuOptions,
-): AntigravityMenuSections {
-  switch (options.source) {
-    case 'repository': {
-      if (
-        typeof options.accounts?.read !== 'function' ||
-        typeof options.settings?.read !== 'function'
-      ) {
-        throw new TypeError(
-          'repository menu mode needs an account repository and a settings source',
-        )
-      }
-      const ids = createItemIds(options.createItemId ?? randomItemId)
-      const now = options.now ?? Date.now
-      return {
-        accounts: accountsSection(options, ids, now),
-        quota: quotaSection(options),
-        routing: routingSection(options),
-        limits: limitsSection(options),
-      }
-    }
-    case 'sections': {
-      const sections = options.sections
-      for (const slot of SECTION_SLOTS) {
-        if (!isPluginSection(sections?.[slot])) {
-          throw new TypeError(`sections menu mode needs a ${slot} section`)
-        }
-      }
-      return sections
-    }
-    default: {
-      const unsupported: never = options
-      void unsupported
-      throw new TypeError('the menu source must be repository or sections')
-    }
-  }
+function accountSlots(options: AntigravityCommandMenuOptions): AntigravityMenuSections {
+	switch (options.source) {
+		case "repository": {
+			if (
+				typeof options.accounts?.read !== "function" ||
+				typeof options.settings?.read !== "function"
+			) {
+				throw new TypeError(
+					"repository menu mode needs an account repository and a settings source",
+				);
+			}
+			const ids = createItemIds(options.createItemId ?? randomItemId);
+			const now = options.now ?? Date.now;
+			return {
+				accounts: accountsSection(options, ids, now),
+				quota: quotaSection(options),
+				routing: routingSection(options),
+				limits: limitsSection(options),
+			};
+		}
+		case "sections": {
+			const sections = options.sections;
+			for (const slot of SECTION_SLOTS) {
+				if (!isPluginSection(sections?.[slot])) {
+					throw new TypeError(`sections menu mode needs a ${slot} section`);
+				}
+			}
+			return sections;
+		}
+		default: {
+			const unsupported: never = options;
+			void unsupported;
+			throw new TypeError("the menu source must be repository or sections");
+		}
+	}
 }
 
 /**
@@ -724,24 +690,22 @@ function accountSlots(
  * modes, so no pool store is passed; Cache, Diagnostics and extras are the
  * host's.
  */
-export function createAntigravityCommandMenu(
-  options: AntigravityCommandMenuOptions,
-): CommandMenu {
-  const replace = accountSlots(options)
-  return options.commands.createCommandMenu({
-    command: ANTIGRAVITY_MENU_COMMAND,
-    title: ANTIGRAVITY_MENU_TITLE,
-    replace: {
-      accounts: replace.accounts,
-      quota: replace.quota,
-      routing: replace.routing,
-      limits: replace.limits,
-    },
-    ...(options.cache ? { cache: options.cache } : {}),
-    ...(options.diagnostics ? { diagnostics: options.diagnostics } : {}),
-    ...(options.extras ? { extras: options.extras } : {}),
-    ...(options.logger ? { logger: options.logger } : {}),
-    ...(options.redaction ? { redaction: options.redaction } : {}),
-    ...(options.now ? { now: options.now } : {}),
-  })
+export function createAntigravityCommandMenu(options: AntigravityCommandMenuOptions): CommandMenu {
+	const replace = accountSlots(options);
+	return options.commands.createCommandMenu({
+		command: ANTIGRAVITY_MENU_COMMAND,
+		title: ANTIGRAVITY_MENU_TITLE,
+		replace: {
+			accounts: replace.accounts,
+			quota: replace.quota,
+			routing: replace.routing,
+			limits: replace.limits,
+		},
+		...(options.cache ? { cache: options.cache } : {}),
+		...(options.diagnostics ? { diagnostics: options.diagnostics } : {}),
+		...(options.extras ? { extras: options.extras } : {}),
+		...(options.logger ? { logger: options.logger } : {}),
+		...(options.redaction ? { redaction: options.redaction } : {}),
+		...(options.now ? { now: options.now } : {}),
+	});
 }
