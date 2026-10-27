@@ -1,3 +1,15 @@
+---
+version: 1
+id: "analysis-pi-startup-recovery"
+title: "Pi startup recovery after a failed credential-slot synchronization"
+description: "Upstream root-cause analysis of two Pi startup defects in vault credential-slot synchronization, with red test logs. Paths refer to the former packages/pi layout."
+type: "analysis"
+created: "2026-10-11T15:41:16+02:00"
+updated: "2026-10-27T08:39:25+01:00"
+createdBy: "cortexkit-upstream"
+updatedBy: "pi"
+---
+
 # Pi startup recovery after a failed credential-slot synchronization
 
 Base: `d2d0e5e6`. Provenance: the report-only source audit at Git object

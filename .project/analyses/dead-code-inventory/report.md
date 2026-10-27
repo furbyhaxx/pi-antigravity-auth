@@ -1,3 +1,15 @@
+---
+version: 1
+id: "analysis-dead-code-inventory"
+title: "Common-auth migration dead-code inventory (upstream)"
+description: "Upstream bounded dead-code audit from the common-auth migration at 3.0.2. Historical: written for the OpenCode+Pi monorepo; most paths no longer exist in this fork."
+type: "analysis"
+created: "2026-10-13T11:40:27+02:00"
+updated: "2026-10-27T08:39:25+01:00"
+createdBy: "cortexkit-upstream"
+updatedBy: "pi"
+---
+
 # Common-auth migration: bounded dead-code inventory
 
 Base reviewed: `ca92ad8f9945fe7e9fa3ba5b7d2bf13ee3a0360b` (3.0.2). This is one cleanup round, not an exhaustive unused-export audit. V1 means OpenCode 1.x; GA means OpenCode 2's generally available plugin API. `ARCHITECTURE.md` and `STRUCTURE.md` describe the supported repository, shared request executor, vault and menu paths.

@@ -1,3 +1,15 @@
+---
+version: 1
+id: "research-antigravity-api-spec"
+title: "Antigravity Unified Gateway API specification"
+description: "Upstream wire-level reference for the Antigravity gateway: endpoints, auth, request and response shapes, verified by direct API testing in December 2025."
+type: "research"
+created: "2025-12-18T10:47:02+07:00"
+updated: "2026-10-27T08:39:25+01:00"
+createdBy: "cortexkit-upstream"
+updatedBy: "pi"
+---
+
 # Antigravity Unified Gateway API Specification
 
 **Version:** 1.0

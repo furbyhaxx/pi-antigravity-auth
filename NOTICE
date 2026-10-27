@@ -1,0 +1,8 @@
+This package is a fork of cortexkit/antigravity-auth,
+main commit 8fdccf414cd2abb9d11f3d3a3f7f683da70686bc (v3.0.12, MIT).
+https://github.com/cortexkit/antigravity-auth
+
+It keeps the Pi adapter (packages/pi) and the parts of the shared engine
+(packages/core) that the Pi adapter uses. Upstream copyright and permission
+notice are reproduced in LICENSE. Pi-only restructuring and subsequent changes
+are part of pi-antigravity-auth.

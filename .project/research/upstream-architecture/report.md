@@ -1,3 +1,15 @@
+---
+version: 1
+id: "research-upstream-architecture"
+title: "Upstream architecture of cortexkit/antigravity-auth"
+description: "Snapshot of the upstream monorepo architecture (core, OpenCode adapters, Pi extension) at the fork point v3.0.12. Historical reference; the fork keeps only the Pi extension and the engine it uses."
+type: "research"
+created: "2026-05-20T03:16:47+01:00"
+updated: "2026-10-27T08:39:25+01:00"
+createdBy: "cortexkit-upstream"
+updatedBy: "pi"
+---
+
 # Architecture
 
 This document maps the current `@cortexkit/antigravity-auth*` source tree: shared core, the unified OpenCode 1.x / OpenCode 2 server and TUI package, and the Pi extension. Manifests and source are authoritative.

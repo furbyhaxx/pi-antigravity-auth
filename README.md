@@ -1,18 +1,25 @@
-# @cortexkit/pi-antigravity-auth
+# pi-antigravity-auth
 
-Google Antigravity OAuth extension for [pi](https://github.com/earendil-works/pi-mono).
-Authenticate with your Google account and use Gemini 3 models through
-Antigravity's endpoints.
+Google Antigravity provider for [Pi](https://github.com/earendil-works/pi-mono). Sign in with
+your Google account and use Gemini, Claude and GPT-OSS models through Antigravity's endpoints
+instead of a pay-as-you-go API key.
 
 > [!CAUTION]
-> Using this extension violates Google's Terms of Service. Accounts may be
-> suspended or banned. This is an unofficial tool not endorsed by Google.
+> **Unofficial integration.** Using Antigravity outside Google's own clients violates Google's
+> Terms of Service; accounts have been suspended or banned. Not endorsed by Google or the model
+> providers. Never share OAuth tokens, `auth.json`, vault files or raw request dumps.
+
+Fork of [cortexkit/antigravity-auth](https://github.com/cortexkit/antigravity-auth), reduced to
+the Pi extension. See [Fork changes](#fork-changes).
 
 ## Install
 
 ```bash
-pi install npm:@cortexkit/pi-antigravity-auth
+pi install git:https://github.com/furbyhaxx/pi-antigravity-auth
 ```
+
+Then `/reload` or restart Pi. The extension ships raw TypeScript; there is no build step. For a
+local checkout use `pi install "$PWD"`, or `pi -e ./src/index.ts` for a one-off session.
 
 ## Login
 
@@ -20,90 +27,55 @@ pi install npm:@cortexkit/pi-antigravity-auth
 /login google
 ```
 
-A browser URL is shown. Complete the Google OAuth flow and paste the resulting
-callback URL (or authorization code) back into the prompt.
+Pi shows a browser URL. Complete the Google OAuth flow and paste the callback URL (or the
+authorization code) back into the prompt. Credentials land in Pi's native `google` slot in
+`auth.json` in the Pi agent directory.
 
-The extension replaces Pi's built-in `google` catalog with Antigravity models.
-Use Antigravity OAuth for this provider, not a Google AI Studio API key. If upgrading
-from the old provider ID, change model selections to `google/antigravity-…` and
-run `/login google`. Credentials saved under `google-antigravity` are not migrated
-to `google` automatically.
+The extension replaces Pi's built-in `google` catalog with Antigravity models, so use
+Antigravity OAuth for this provider, not a Google AI Studio API key.
 
-Use `/antigravity` to request vault access and select a vault account. Local and
-vault modes use the same `google/antigravity-…` model IDs. After the operator
-approves access, the extension backs up Pi's native Google login and temporarily
-replaces its slot with a non-secret marker before the first model request.
-Requests then use only vault credentials; an empty or unreachable vault does not
-fall back to the local login. Disconnecting vault enrollment attempts to restore
-the saved Google login only when the native slot still matches the non-secret
-marker installed for that enrollment.
-If another process changed the slot, the extension keeps the backup and refuses
-to overwrite that change; re-login may be needed. This is not a promise to restore
-every native auth record when changing plugin versions.
+`/antigravity` opens the account and vault menu: request Claustrum vault access, select a vault
+account, and inspect quota. Details in [docs/vault.md](docs/vault.md).
 
 ## Models
 
-The extension registers the Antigravity model catalog under the
-`google` provider, including:
+Registered under the `google` provider, for example:
 
-- `antigravity-gemini-3.8-flash`
-- `antigravity-gemini-4-argon`
-- `antigravity-gemini-3.5-flash`
-- `antigravity-claude-sonnet-5-5`
-- `antigravity-claude-opus-5-5`
-
-Claude 5.5 supports low, medium and high effort, a 1,000,000-token context and
-128,000-token output limit. Retired Claude 4.6 requests refuse before credential
-acquisition or transport; they are not redirected to 5.5.
-Gemini 3.1 Pro, Gemini 3.6/3.7 Flash and `gemini-pro-agent` were withdrawn by
-Antigravity. Their grouped and native tier selectors also refuse before
-credential acquisition or transport, without aliases; history stays readable.
-
-Gemini 4 Argon requires **Google AI Ultra** and supports low, medium and high
-effort (medium by default), with 1,048,576 context and 65,536 output tokens.
-It uses Antigravity only. Argon's per-model remaining quota and reset time are
-reported separately because the redacted quota summary does not identify an
-Argon weekly shared-quota bucket; weekly pool attribution remains unverified.
+- `antigravity-gemini-3.8-flash`, `antigravity-gemini-3.5-flash`
+- `antigravity-gemini-4-argon` (requires Google AI Ultra)
+- `antigravity-claude-sonnet-5-5`, `antigravity-claude-opus-5-5`
 - `antigravity-gpt-oss-120b-medium`
 
-The image-generation model is currently OpenCode-only because Pi's provider event
-protocol does not expose image-output stream events.
-
-Select a model with `/model` or `pi -m google/antigravity-gemini-3.8-flash`.
+Select one with `/model` or `pi -m google/antigravity-gemini-3.8-flash`. Thinking variants,
+limits and retired models are listed in [docs/model-variants.md](docs/model-variants.md).
 
 ## Configuration
 
-| Environment variable | Description |
+| Environment variable | Effect |
 | --- | --- |
-| `PI_AGENT_DIR` | Override the pi agent directory (default `~/.pi/agent`). |
-| `PI_ANTIGRAVITY_AUTH_FILE` | Relocate the base path used to place `antigravity-auth-vault/` beside it; does not relocate Pi's native `auth.json` Google slot or create an OpenCode pool. |
+| `PI_AGENT_DIR` | Pi agent directory (default `~/.pi/agent`) |
+| `PI_ANTIGRAVITY_AUTH_FILE` | Base path that places `antigravity-auth-vault/` beside it |
 
-## Notes
+More in [docs/configuration.md](docs/configuration.md); failures and recovery in
+[docs/troubleshooting.md](docs/troubleshooting.md).
 
-This package shares its transport, OAuth, fingerprint, and request-transform
-logic with the unified OpenCode V1/GA plugin via
-[`@cortexkit/antigravity-auth-core`](../core). Local mode uses one account in Pi's
-native `google` OAuth slot (`auth.json` in Pi's agent directory). Vault mode can
-list/select approved vault accounts, but serves one at a time; Pi has no local
-pool rotation, recorded quota gating, killswitch, or operator settings.
+## Fork changes
 
-### Major upgrades and downgrade
+- Pi only: the OpenCode 1/2 adapters, account pool, sidebar, CLI and upstream release
+  infrastructure are removed.
+- One flat package (`src/`, `tests/`) loaded as raw TypeScript, installable from git.
+- `@cortexkit/common-auth` is a regular npm dependency instead of a vendored copy.
 
-Pi's native auth file is **not** the legacy OpenCode pool. Pi-only users must not
-run `antigravity-auth migrate` or `rollback` against it. When upgrading from the
-old `google-antigravity` provider, update model IDs to `google/antigravity-…` and
-run `/login google`: credentials in the `google-antigravity` auth slot are not
-automatically moved or overwritten.
+## Development
 
-Before changing builds while enrolled in a vault, disconnect via `/antigravity` →
-Vault in the currently installed extension, then re-login if safe native-slot
-restoration is not possible. An older build may expect a different provider slot;
-do not copy tokens between slots or assume disconnect restores all native records.
-If you also use an OpenCode legacy pool, follow its separate
-[offline migration/rollback guide](../../README.md#major-upgrades-migration-and-rollback).
-The provider and custody behavior is implemented in [`src/index.ts`](src/index.ts)
-and [`src/vault-setup.ts`](src/vault-setup.ts).
+```bash
+bun install
+just check        # typecheck + lint + test
+just rpc-verify   # load the extension in a real Pi RPC session
+```
+
+Contributor rules live in [AGENTS.md](AGENTS.md).
 
 ## License
 
-MIT
+MIT. Upstream copyright and provenance in [LICENSE](LICENSE) and [NOTICE](NOTICE).
