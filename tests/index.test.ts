@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, mock, spyOn } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -349,6 +349,38 @@ const LOCKOUTS: Array<{
     local: true,
   },
 ]
+
+it('rejects an already aborted Pi OAuth refresh without sending a token request', async () => {
+  const fixture = await recoveryFixture()
+  const fetchSpy = spyOn(globalThis, 'fetch').mockRejectedValue(
+    new Error('Unexpected token request'),
+  )
+  try {
+    const configs: ProviderConfig[] = []
+    await registerCortexKitPiAntigravity(
+      {
+        registerProvider: (_id: string, config: ProviderConfig) => {
+          configs.push(config)
+        },
+        registerCommand: mock(),
+      } as never,
+      fixture.seams,
+    )
+    const oauth = configs[0]?.oauth
+    if (!oauth) throw new Error('Expected local OAuth provider')
+    const reason = new Error('Refresh cancelled by Pi')
+    await expect(
+      oauth.refreshToken(
+        { refresh: 'synthetic-refresh', access: 'synthetic-access', expires: 1 },
+        AbortSignal.abort(reason),
+      ),
+    ).rejects.toBe(reason)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  } finally {
+    fetchSpy.mockRestore()
+    await rm(fixture.directory, { recursive: true, force: true })
+  }
+})
 
 /** Model ids of the provider a clean local start registers. */
 async function localModelIds(): Promise<string[]> {

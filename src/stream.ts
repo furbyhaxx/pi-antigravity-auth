@@ -188,7 +188,7 @@ export interface GeminiResponsePart {
 }
 
 export interface GeminiToolCallState {
-  pendingThoughtSignature?: string
+  pendingThoughtSignature?: string | undefined
 }
 
 export function convertGeminiToolCallPart(
@@ -553,11 +553,11 @@ export function streamCortexKitAntigravity(
       return sendAntigravityRequest({
         model,
         context,
-        streamOptions: options,
+        ...(options === undefined ? {} : { streamOptions: options }),
         accessToken,
         sessionKey,
         signal,
-        assertAdmission,
+        ...(assertAdmission === undefined ? {} : { assertAdmission }),
         selectedProjectIds,
         deadline,
       })
@@ -665,8 +665,9 @@ function runAntigravityStream(
       if (response.ok) deadline.acceptHeaders()
 
       if (!response.ok) {
+        const errorResponse = response
         throw new Error(
-          `Antigravity request failed: HTTP ${response.status} ${await deadline.wait(() => response!.text())}`,
+          `Antigravity request failed: HTTP ${errorResponse.status} ${await deadline.wait(() => errorResponse.text())}`,
         )
       }
 

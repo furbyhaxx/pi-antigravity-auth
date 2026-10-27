@@ -58,7 +58,9 @@ function textImageInput(): Array<'text' | 'image'> {
 async function loginAntigravity(
   callbacks: OAuthLoginCallbacks,
 ): Promise<OAuthCredentials> {
+  callbacks.signal?.throwIfAborted()
   const auth = await authorizeAntigravity()
+  callbacks.signal?.throwIfAborted()
   callbacks.onAuth({ url: auth.url })
   const code = await callbacks.onPrompt({
     message: 'Paste the Antigravity OAuth callback URL or code:',
@@ -81,7 +83,9 @@ async function loginAntigravity(
     // Not a URL — treat the input as a bare authorization code.
   }
 
-  const result = await exchangeAntigravity(rawCode, state)
+  const result = await exchangeAntigravity(rawCode, state, {
+    ...(callbacks.signal === undefined ? {} : { signal: callbacks.signal }),
+  })
   if (result.type !== 'success') {
     throw new Error(`Antigravity OAuth exchange failed: ${result.error}`)
   }
@@ -95,7 +99,9 @@ async function loginAntigravity(
 
 async function refreshAntigravityCredentials(
   credentials: OAuthCredentials,
+  signal: AbortSignal,
 ): Promise<OAuthCredentials> {
+  signal.throwIfAborted()
   // Local mode refreshes Pi's own login only. The vault placeholder is not a
   // login: refreshing it would send it to Google as a refresh token.
   if (credentials.refresh.startsWith(CUSTODY_PLACEHOLDER_REFRESH_PREFIX))
@@ -105,6 +111,7 @@ async function refreshAntigravityCredentials(
   // Stored refresh is `refreshToken|projectId|managedProjectId`.
   const refreshToken = credentials.refresh.split('|')[0] ?? credentials.refresh
   const refreshed = await refreshAntigravityToken(refreshToken)
+  signal.throwIfAborted()
   // Preserve the project segments packed into the stored refresh string.
   const projectSegments = credentials.refresh.includes('|')
     ? credentials.refresh.slice(credentials.refresh.indexOf('|'))
@@ -150,9 +157,10 @@ function localProviderConfig(
         await assertLocalAdmission()
         return loginAntigravity(callbacks)
       },
-      refreshToken: async (credentials) => {
+      refreshToken: async (credentials, signal) => {
+        signal.throwIfAborted()
         await assertLocalAdmission()
-        return refreshAntigravityCredentials(credentials)
+        return refreshAntigravityCredentials(credentials, signal)
       },
       getApiKey: (credentials) => {
         // Bridge the packed refresh (refreshToken|projectId|managedProjectId)

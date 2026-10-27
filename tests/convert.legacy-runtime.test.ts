@@ -1,6 +1,11 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { afterAll, describe, expect, it, mock } from 'bun:test'
 import type { Context } from '@earendil-works/pi-ai'
 import * as actualPiAi from '@earendil-works/pi-ai'
+
+const originalPiAi = { ...actualPiAi }
+afterAll(() => {
+  mock.module('@earendil-works/pi-ai', () => originalPiAi)
+})
 
 // Simulate a pre-0.86 pi-ai install that has no transcript helpers. The
 // converter must still load and handle flat contexts, and must refuse a

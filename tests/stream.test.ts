@@ -218,7 +218,7 @@ async function runStream(
     streamCortexKitAntigravity(model, userContext(), {
       apiKey: 'test-token',
       sessionId,
-      reasoning,
+      ...(reasoning === undefined ? {} : { reasoning }),
     }),
   )
 }
@@ -533,7 +533,7 @@ async function runContextStream(context: Context, sessionId?: string) {
   await collectStream(
     streamCortexKitAntigravity(fakeModel(), context, {
       apiKey: 'test-token',
-      sessionId,
+      ...(sessionId === undefined ? {} : { sessionId }),
     }),
   )
   return JSON.parse(
@@ -727,8 +727,8 @@ describe('resolvePiAntigravityModel', () => {
         const result = await collectStream(
           streamCortexKitAntigravity(model, userContext(), {
             apiKey: 'test-token',
-            reasoning: effort,
-            maxTokens: cap,
+            ...(effort === undefined ? {} : { reasoning: effort }),
+            ...(cap === undefined ? {} : { maxTokens: cap }),
             sessionId: `argon-${effort}-${cap}`,
           }),
         )
@@ -794,7 +794,7 @@ describe('resolvePiAntigravityModel', () => {
           const result = await collectStream(
             streamCortexKitAntigravity(model, userContext(), {
               apiKey: 'test-token',
-              reasoning: effort,
+              ...(effort === undefined ? {} : { reasoning: effort }),
               sessionId: `registered-${id}-${effort}`,
             }),
           )

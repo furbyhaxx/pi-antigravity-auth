@@ -220,9 +220,13 @@ function convertTools(
         name: tool.name,
         description: tool.description,
         parameters: toGeminiSchema(tool.parameters, {
-          moveNumericConstraintsToDescription: model
-            ?.replace(/^antigravity-/, '')
-            .startsWith('gpt-oss-'),
+          ...(model === undefined
+            ? {}
+            : {
+                moveNumericConstraintsToDescription: model
+                  .replace(/^antigravity-/, '')
+                  .startsWith('gpt-oss-'),
+              }),
         }),
       })),
     },
