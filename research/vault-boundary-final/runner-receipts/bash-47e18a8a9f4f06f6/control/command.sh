@@ -1,1 +1,0 @@
-bun --version; node --version; bunx tsc --version; bun run --cwd packages/core build && bun run --cwd packages/core typecheck && bun run --cwd packages/opencode typecheck && bun run --cwd packages/pi typecheck; inner=$?; printf '\nINNER_EXIT=%s\n' "$inner"; exit "$inner"

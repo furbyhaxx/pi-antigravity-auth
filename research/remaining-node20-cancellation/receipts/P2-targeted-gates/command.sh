@@ -1,1 +1,0 @@
-bash -c bun\ --version\ \&\&\ node\ --version\ \&\&\ ./node_modules/.bin/tsc\ --version\ \&\&\ bun\ run\ --cwd\ packages/core\ build\ \&\&\ bun\ run\ --cwd\ packages/core\ typecheck\ \&\&\ bun\ run\ --cwd\ packages/pi\ typecheck\ \&\&\ bun\ test\ --isolate\ packages/core/src/abort-forwarding.test.ts\ packages/core/src/fetch-timeout.test.ts\ packages/pi/src/stream.test.ts 

@@ -5,26 +5,19 @@ default: check
 install:
 	bun install
 
-build:
-	bun run --cwd packages/core build
-	bun run --cwd packages/pi build
+test:
+	bun test
 
 typecheck:
-	bun run typecheck
+	bunx tsc --noEmit
 
 lint:
-	bun run lint
+	bunx biome check .
 
 format:
-	bun run format
+	bunx biome check --write .
 
-test:
-	bun run test
-
-e2e:
-	bun run test:e2e
-
-rpc-verify: build
-	{ echo '{"type":"get_commands","id":"1"}'; sleep 2; } | timeout 30 ${PI_BIN:-pi-bolt} --mode rpc --no-session -ne --offline -e ./packages/pi/dist/index.js
+rpc-verify:
+	{ echo '{"type":"get_commands","id":"1"}'; sleep 2; } | timeout 30 ${PI_BIN:-pi-bolt} --mode rpc --no-session -ne --offline -e ./src/index.ts
 
 check: typecheck lint test

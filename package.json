@@ -1,46 +1,68 @@
 {
-  "name": "@cortexkit/antigravity-auth",
-  "private": true,
-  "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "embed:check": "bun run --cwd packages/opencode embed:check && bun packages/core/scripts/embed-common-auth.ts --check",
-    "build": "bun run embed:check && bun run --cwd packages/core build && bun run --cwd packages/opencode build && bun run --cwd packages/pi build",
-    "build:tui": "bun run embed:check && bun run --cwd packages/opencode build:tui",
-    "typecheck": "bun run embed:check && bun run --cwd packages/core build && bun run --cwd packages/core typecheck && bun run --cwd packages/opencode typecheck && bun run --cwd packages/pi typecheck && bun run --cwd packages/e2e-tests typecheck:ga && tsc -p tsconfig.scripts.json",
-    "test": "bun run embed:check && bun run --cwd packages/core build && bun scripts/prepare-common-auth-public-consumer.ts bun test --isolate packages/core/src packages/opencode/src packages/opencode/scripts/build-tui.test.ts packages/opencode/scripts/smoke-tui-pack-install.test.ts packages/pi/src test/ packages/e2e-tests/docker/ga-contract-inputs.test.ts",
-    "test:rpc:matrix": "node test/common-auth-094-adoption/rpc/runtime-matrix.mjs --node20 \"$NODE20\" --node24 \"$NODE24\" --bun13 \"$BUN13\" --bun14 \"$BUN14\"",
-    "test:e2e": "bun test --isolate ./packages/e2e-tests/src/plugin-flow.e2e.test.ts ./packages/e2e-tests/src/cli-flow.e2e.test.ts ./packages/e2e-tests/src/rpc-tui-flow.e2e.test.ts ./packages/e2e-tests/src/fetch-guard.test.ts ./packages/e2e-tests/src/mock-antigravity-server.test.ts ./packages/e2e-tests/src/e2e-phase-diagnostic.test.ts",
-    "test:native-inert": "bun scripts/native-inert-gate.ts",
-    "test:e2e:opencode-v2": "bash packages/e2e-tests/docker/run-opencode-ga-test.sh --smoke --inputs packages/e2e-tests/src/opencode-ga-inputs.ts",
-    "test:e2e:opencode-v2:extended": "bash packages/e2e-tests/docker/run-opencode-ga-test.sh --inputs packages/e2e-tests/src/opencode-ga-inputs.ts",
-    "test:e2e:opencode-v2:local": "bun run --cwd packages/core build && bun run --cwd packages/opencode build && bash -c 'root=\"$(mktemp -d)\" && trap \"rm -rf \\\"$root\\\"\" EXIT && ANTIGRAVITY_GA_HOST_EXECUTION=1 bun packages/e2e-tests/src/opencode-ga-harness.ts --run \"$root\" --inputs packages/e2e-tests/src/opencode-ga-inputs.ts'",
-    "test:e2e:models": "bun run --cwd packages/opencode test:e2e:models",
-    "test:e2e:regression": "bun run --cwd packages/opencode test:e2e:regression",
-    "prepublishOnly": "bun run embed:check && bun run build",
-    "dev": "bun scripts/dev.ts",
-    "dev:clean": "bun scripts/dev-clean.ts",
-    "format": "bun run embed:check && biome format --write .",
-    "format:check": "bun run embed:check && biome format . && bun run lint:native-inert",
-    "lint": "bun run embed:check && biome lint . --error-on-warnings && bun run lint:native-inert",
-    "lint:native-inert": "bun scripts/lint-native-inert-sources.ts",
-    "smoke:tui": "bun run embed:check && bun run --cwd packages/opencode smoke:tui",
-    "pack:core:dry": "cd packages/core && bun pm pack --dry-run",
-    "pack:opencode-dry": "cd packages/opencode && bun pm pack --dry-run",
-    "pack:pi-dry": "cd packages/pi && bun pm pack --dry-run"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.5.3",
-    "@opencode-ai/plugin": "1.17.13",
-    "@opentui/core": "0.4.5",
-    "@opentui/keymap": "0.4.5",
-    "@opentui/solid": "0.4.5",
-    "@types/bun": "1.3",
-    "@tsconfig/bun": "1.0.10",
-    "@types/node": "24.10.1",
-    "lefthook": "2.1.9",
-    "typescript": "6.0.3"
-  }
+	"name": "@furbyhaxx/pi-antigravity-auth",
+	"version": "3.0.12",
+	"description": "Google Antigravity provider for Pi: Gemini, Claude and GPT-OSS through Antigravity OAuth",
+	"license": "MIT",
+	"type": "module",
+	"packageManager": "bun@1.4.3",
+	"engines": {
+		"bun": ">=1.4.0",
+		"node": ">=22.19.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/furbyhaxx/pi-antigravity-auth.git"
+	},
+	"homepage": "https://github.com/furbyhaxx/pi-antigravity-auth#readme",
+	"bugs": {
+		"url": "https://github.com/furbyhaxx/pi-antigravity-auth/issues"
+	},
+	"keywords": [
+		"pi",
+		"pi-package",
+		"pi-extension",
+		"google",
+		"antigravity",
+		"gemini",
+		"claude",
+		"oauth"
+	],
+	"files": [
+		"src",
+		"docs",
+		"CHANGELOG.md",
+		"README.md",
+		"LICENSE",
+		"NOTICE"
+	],
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"scripts": {
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"format": "biome check --write .",
+		"check": "bun run typecheck && bun run lint && bun test"
+	},
+	"dependencies": {
+		"@cortexkit/claustrum-client": "0.12.0",
+		"@cortexkit/common-auth": "0.26.0",
+		"@cortexkit/subc-client": "0.22.5"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.15",
+		"@earendil-works/pi-ai": "1.3.0",
+		"@earendil-works/pi-coding-agent": "1.3.0",
+		"@earendil-works/pi-tui": "1.3.0",
+		"@types/bun": "1.4.3",
+		"typescript": "7.0.2"
+	}
 }

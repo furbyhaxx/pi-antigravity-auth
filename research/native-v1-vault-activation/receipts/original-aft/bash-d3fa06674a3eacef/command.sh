@@ -1,1 +1,0 @@
-bun --version && bun run --cwd packages/core build && bun test --isolate ./packages/e2e-tests/src/v1-vault-activation.e2e.test.ts

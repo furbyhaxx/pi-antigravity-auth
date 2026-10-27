@@ -1,2 +1,0 @@
-$ rm -rf dist && tsc -p tsconfig.build.json && bun scripts/copy-common-auth-embedded.mjs
-$ tsc --noEmit

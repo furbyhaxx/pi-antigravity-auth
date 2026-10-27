@@ -1,1 +1,0 @@
-bash -c bun\ --version\ \&\&\ node\ --version\ \&\&\ ./node_modules/.bin/tsc\ --version\ \&\&\ ./node_modules/.bin/biome\ --version\ \&\&\ bun\ run\ --cwd\ packages/core\ build\ \&\&\ bun\ run\ --cwd\ packages/pi\ typecheck\ \&\&\ bun\ test\ --isolate\ packages/pi/src/stream.test.ts\ \&\&\ ./node_modules/.bin/biome\ check\ packages/pi/src/stream.test.ts\ --error-on-warnings 
