@@ -41,11 +41,11 @@
 		]
 	},
 	"scripts": {
-		"test": "bun test",
+		"test": "bun test --isolate",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",
 		"format": "biome check --write .",
-		"check": "bun run typecheck && bun run lint && bun test"
+		"check": "bun run typecheck && bun run lint && bun test --isolate"
 	},
 	"dependencies": {
 		"@cortexkit/claustrum-client": "0.12.0",

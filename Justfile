@@ -6,7 +6,7 @@ install:
 	bun install
 
 test:
-	bun test
+	bun test --isolate
 
 typecheck:
 	bunx tsc --noEmit
