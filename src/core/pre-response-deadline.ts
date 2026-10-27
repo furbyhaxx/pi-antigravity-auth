@@ -59,10 +59,15 @@ export class PreResponseDeadline {
   private readonly detachCaller: () => void
   private readonly detachSignals: Array<() => void> = []
 
+  private readonly caller: AbortSignal | null | undefined
+  private readonly time: PreResponseClock
+
   constructor(
-    private readonly caller?: AbortSignal | null,
-    private readonly time: PreResponseClock = clock,
+    caller?: AbortSignal | null,
+    time: PreResponseClock = clock,
   ) {
+    this.caller = caller
+    this.time = time
     this.expiresAt = time.now() + PRE_RESPONSE_DEADLINE_MS
     this.signal = this.controller.signal
     const abort = () => {

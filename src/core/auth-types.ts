@@ -26,8 +26,8 @@ export type GetAuth = () => Promise<AuthDetails>
 
 export interface RefreshParts {
   refreshToken: string
-  projectId?: string
-  managedProjectId?: string
+  projectId?: string | undefined
+  managedProjectId?: string | undefined
 }
 
 export interface ProjectContextResult {
@@ -38,5 +38,5 @@ export interface ProjectContextResult {
    * resolution time. Present only when the upstream returned a non-empty
    * `currentTier.id`; absent when the payload lacked tier info.
    */
-  capturedTier?: { id: string; paidId?: string; capturedAt: number }
+  capturedTier?: { id: string; paidId?: string; capturedAt: number } | undefined
 }

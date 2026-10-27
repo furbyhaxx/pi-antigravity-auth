@@ -99,9 +99,9 @@ export interface ResolvedModel {
   /** Thinking level for Gemini 3 models */
   thinkingLevel?: string
   /** Thinking budget for Claude/Gemini 2.5 */
-  thinkingBudget?: number
+  thinkingBudget?: number | undefined
   /** The tier suffix that was extracted */
-  tier?: ThinkingTier
+  tier?: ThinkingTier | undefined
   /** Whether this is a thinking-capable model */
   isThinkingModel?: boolean
   /** Whether this is an image generation model */
@@ -109,5 +109,5 @@ export interface ResolvedModel {
   /** Source of thinking config: "variant" (providerOptions) or "tier" (model suffix) */
   configSource?: 'variant' | 'tier'
   /** Google Search configuration from variant or global config */
-  googleSearch?: GoogleSearchConfig
+  googleSearch?: GoogleSearchConfig | undefined
 }

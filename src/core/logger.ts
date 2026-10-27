@@ -20,7 +20,7 @@ export interface LogRecord {
   service: string
   level: LogLevel
   message: string
-  extra?: Record<string, unknown>
+  extra?: Record<string, unknown> | undefined
 }
 
 export type LogSink = (record: LogRecord) => void

@@ -158,13 +158,15 @@ export type AntigravityVaultSourceFailureKind =
  */
 export class AntigravityVaultSourceError extends Error {
   readonly kind: AntigravityVaultSourceFailureKind
+  readonly reason: 'version-changed' | undefined
 
   constructor(
     kind: AntigravityVaultSourceFailureKind,
     message: string,
-    readonly reason?: 'version-changed',
+    reason?: 'version-changed',
   ) {
     super(message)
+    this.reason = reason
     this.name = 'AntigravityVaultSourceError'
     this.kind = kind
   }
@@ -742,7 +744,7 @@ export function createAntigravityVaultAccountSource(
         statePath: options.state.path,
         attribution,
         verify: (by) => verifyAttribution(by, signal),
-        signal,
+        ...(signal !== undefined ? { signal } : {}),
         update,
       })
     },

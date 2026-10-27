@@ -51,8 +51,8 @@ interface AntigravityTokenExchangeSuccess {
   refresh: string
   access: string
   expires: number
-  email?: string
-  label?: string
+  email?: string | undefined
+  label?: string | undefined
   projectId: string
 }
 
@@ -228,7 +228,10 @@ async function fetchProjectID(
             metadata: buildAntigravityLoadCodeAssistMetadata(),
           }),
         },
-        { timeoutMs: 10000, signal: options.signal },
+        {
+          timeoutMs: 10000,
+          ...(options.signal !== undefined ? { signal: options.signal } : {}),
+        },
       )
       await admitExchange(options)
 
@@ -297,7 +300,7 @@ export async function exchangeAntigravity(
       'https://oauth2.googleapis.com/token',
       {
         method: 'POST',
-        signal: options.signal,
+        ...(options.signal !== undefined ? { signal: options.signal } : {}),
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
           Accept: '*/*',
@@ -329,7 +332,7 @@ export async function exchangeAntigravity(
     const userInfoResponse = await fetchWithActiveTimeout(
       'https://www.googleapis.com/oauth2/v1/userinfo?alt=json',
       {
-        signal: options.signal,
+        ...(options.signal !== undefined ? { signal: options.signal } : {}),
         headers: {
           Authorization: `Bearer ${tokenPayload.access_token}`,
           'User-Agent': buildAntigravityHarnessUserAgent(),

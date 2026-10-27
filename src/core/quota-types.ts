@@ -23,7 +23,7 @@ export interface QuotaGroupSummary {
   /** Most-constrained window's remainingFraction (derived from `windows`). */
   remainingFraction?: number
   /** Most-constrained window's resetTime (derived from `windows`). */
-  resetTime?: string
+  resetTime?: string | undefined
   modelCount: number
   /**
    * Per-window breakdown from the retrieveUserQuotaSummary response.

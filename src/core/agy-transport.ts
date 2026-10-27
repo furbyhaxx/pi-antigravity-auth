@@ -43,7 +43,7 @@ type ParsedResponseHead = {
   headers: Headers
   chunked: boolean
   gzip: boolean
-  contentLength?: number
+  contentLength?: number | undefined
 }
 
 function headersToRecord(headers?: HeadersInit): Record<string, string> {
