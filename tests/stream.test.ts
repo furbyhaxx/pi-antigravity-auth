@@ -18,6 +18,7 @@ import { rememberPackedRefresh } from "../src/credential-cache.ts";
 import opusLow from "./fixtures/agy-cli-1.3.3/native-opus-low.json";
 import sonnetLow from "./fixtures/agy-cli-1.3.3/native-sonnet-low.json";
 import schemaDerived from "./fixtures/agy-cli-1.3.3/schema-derived-thinking.json";
+import { defined } from "./support/defined.ts";
 
 const ensureProjectContextMock = mock(async () => ({
 	auth: {
@@ -1041,7 +1042,10 @@ describe("convertGeminiToolCallPart", () => {
 
 describe("streamCortexKitAntigravity", () => {
 	it("works without AbortSignal.any with a caller signal", async () => {
-		const descriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any")!;
+		const descriptor = defined(
+			Object.getOwnPropertyDescriptor(AbortSignal, "any"),
+			"AbortSignal.any descriptor",
+		);
 		Object.defineProperty(AbortSignal, "any", {
 			...descriptor,
 			value: undefined,
@@ -1353,7 +1357,10 @@ describe("streamCortexKitAntigravity", () => {
 describe("Pi caller cancellation without AbortSignal.any", () => {
 	let anyDescriptor: PropertyDescriptor;
 	beforeEach(() => {
-		anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any")!;
+		anyDescriptor = defined(
+			Object.getOwnPropertyDescriptor(AbortSignal, "any"),
+			"AbortSignal.any descriptor",
+		);
 		Object.defineProperty(AbortSignal, "any", {
 			...anyDescriptor,
 			value: undefined,
@@ -1448,7 +1455,7 @@ describe("Pi caller cancellation without AbortSignal.any", () => {
 		expect(requestSignal.reason).toBe(reason);
 		expect(result.stopReason).toBe("aborted");
 		expect(result.errorMessage).toBe(reason.message);
-		expect(response.body!.locked).toBe(false);
+		expect(defined(response.body, "response body").locked).toBe(false);
 		expect(listeners.size).toBe(0);
 	});
 
@@ -1489,7 +1496,7 @@ describe("Pi caller cancellation without AbortSignal.any", () => {
 		finishCancel();
 		const { result } = await pending;
 		expect(result.stopReason).toBe("stop");
-		expect(response.body!.locked).toBe(false);
+		expect(defined(response.body, "response body").locked).toBe(false);
 		expect(listeners.size).toBe(0);
 		caller.abort(new Error("after success"));
 		expect(requestSignal.aborted).toBe(false);
@@ -1528,7 +1535,7 @@ describe("Pi caller cancellation without AbortSignal.any", () => {
 		expect(await response.text()).toBe("upstream failure");
 		expect(response.bodyUsed).toBe(true);
 		// A consumed string-backed body can stay locked despite having no source IO.
-		expect(response.body!.locked).toBe(true);
+		expect(defined(response.body, "response body").locked).toBe(true);
 	});
 
 	it("preserves a fully consumed string-backed HTTP error despite its stock body lock", async () => {
@@ -1542,7 +1549,7 @@ describe("Pi caller cancellation without AbortSignal.any", () => {
 		expect(result.stopReason).toBe("error");
 		expect(result.errorMessage).toBe("Antigravity request failed: HTTP 503 upstream failure");
 		expect(response.bodyUsed).toBe(true);
-		expect(response.body!.locked).toBe(true);
+		expect(defined(response.body, "response body").locked).toBe(true);
 		expect(listeners.size).toBe(0);
 		consume.mockRestore();
 	});
@@ -1550,13 +1557,16 @@ describe("Pi caller cancellation without AbortSignal.any", () => {
 	it("consumes the HTTP error body and preserves its error without a live parser or caller listener", async () => {
 		for (const failure of [undefined, new Error("HTTP body read failure")]) {
 			const stock = httpErrorResponse(failure);
-			const stockReader = spyOn(stock.response.body!, "getReader");
+			const stockReader = spyOn(defined(stock.response.body, "stock response body"), "getReader");
 			if (failure) await expect(stock.response.text()).rejects.toBe(failure);
 			else expect(await stock.response.text()).toBe("upstream failure");
 			const caller = new AbortController();
 			const listeners = observeCallerListeners(caller.signal);
 			const source = httpErrorResponse(failure);
-			const parserReader = spyOn(source.response.body!, "getReader");
+			const parserReader = spyOn(
+				defined(source.response.body, "source response body"),
+				"getReader",
+			);
 			let requestSignal!: AbortSignal;
 			fetchWithAgyCliTransportMock.mockImplementationOnce(async (_url, _init, options) => {
 				requestSignal = options.signal;
@@ -1572,7 +1582,9 @@ describe("Pi caller cancellation without AbortSignal.any", () => {
 					: "Antigravity request failed: HTTP 503 upstream failure",
 			);
 			expect(source.response.bodyUsed).toBe(true);
-			expect(source.response.body!.locked).toBe(stock.response.body!.locked);
+			expect(defined(source.response.body, "source response body").locked).toBe(
+				defined(stock.response.body, "stock response body").locked,
+			);
 			expect(source.state()).toEqual({
 				nextChunk: 2,
 				pendingPulls: 0,
@@ -1597,7 +1609,7 @@ describe("Pi caller cancellation without AbortSignal.any", () => {
 		const reason = new Error("vault caller canceled");
 		let forwarded!: AbortSignal;
 		const vaultStream = createCortexKitAntigravityVaultStream(async (_dispatch, signal) => {
-			forwarded = signal!;
+			forwarded = defined(signal, "forwarded signal");
 			expect(listeners.size).toBe(1);
 			caller.abort(reason);
 			throw forwarded.reason;

@@ -23,7 +23,7 @@ import {
 import type { AntigravityVaultStateFs } from "../../src/core/vault-provider-state.ts";
 
 type FixtureOverrides<T> = {
-	[K in keyof T]?: T[K] | ({} extends Pick<T, K> ? undefined : never);
+	[K in keyof T]?: T[K] | (Record<never, never> extends Pick<T, K> ? undefined : never);
 };
 
 type Reporter = VaultReporterSource;
