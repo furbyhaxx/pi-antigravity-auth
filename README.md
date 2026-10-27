@@ -1,5 +1,7 @@
 # Antigravity Auth
 
+> Fork of [cortexkit/antigravity-auth](https://github.com/cortexkit/antigravity-auth)
+
 Use Google Antigravity from OpenCode 1, OpenCode 2, or the Pi coding agent. Sign in with Google to use Antigravity quota for Gemini, Claude, and GPT-OSS models, rather than supplying a pay-as-you-go Google API key.
 
 The host packages are [`@cortexkit/opencode-antigravity-auth`](packages/opencode) and [`@cortexkit/pi-antigravity-auth`](packages/pi). Both use the shared [`@cortexkit/antigravity-auth-core`](packages/core) library.
