@@ -19,5 +19,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- **Cancelling a turn now aborts an in-flight token refresh.** Pi's abort signal reaches the Google token request instead of only being checked before and after it.
 - On Pi 0.86 and newer, requests now include the system prompt and tool declarations again. Pi now delivers them as system messages in the conversation, and the extension replays them with pi-ai's own helpers, including later prompt additions, section updates, and tool additions or removals. Older Pi versions keep working unchanged.
 - Conversations without a Pi session ID no longer share Antigravity request metadata on Pi 0.86 and newer.
