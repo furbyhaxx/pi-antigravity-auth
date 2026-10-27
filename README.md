@@ -35,14 +35,14 @@ The extension replaces Pi's built-in `google` catalog with Antigravity models, s
 Antigravity OAuth for this provider, not a Google AI Studio API key.
 
 `/antigravity` opens the account and vault menu: request Claustrum vault access, select a vault
-account, and inspect quota. Details in [docs/vault.md](docs/vault.md).
+account, and see which account serves requests. Details in [docs/vault.md](docs/vault.md).
 
 ## Models
 
 Registered under the `google` provider, for example:
 
 - `antigravity-gemini-3.8-flash`, `antigravity-gemini-3.5-flash`
-- `antigravity-gemini-4-argon` (requires Google AI Ultra)
+- `antigravity-gemini-4-argon` (upstream reports it needs Google AI Ultra)
 - `antigravity-claude-sonnet-5-5`, `antigravity-claude-opus-5-5`
 - `antigravity-gpt-oss-120b-medium`
 
